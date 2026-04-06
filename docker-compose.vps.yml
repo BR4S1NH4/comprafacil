@@ -1,0 +1,45 @@
+# Stack para VPS (ex.: Oracle Cloud Always Free — ARM).
+# Uso: copie .env.example para .env, defina POSTGRES_PASSWORD, depois:
+#   docker compose -f docker-compose.vps.yml up -d --build
+# Apenas a porta 80 fica exposta; Postgres e API ficam só na rede interna do Docker.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: comprafacil
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+      POSTGRES_DB: comprafacil
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U comprafacil -d comprafacil"]
+      interval: 5s
+      timeout: 5s
+      retries: 8
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql://comprafacil:${POSTGRES_PASSWORD}@postgres:5432/comprafacil
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
