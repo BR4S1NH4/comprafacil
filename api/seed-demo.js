@@ -11,6 +11,11 @@ import { calcProduto } from './calc.js'
 import crypto from 'node:crypto'
 import { RAW_PRODUTOS, CLIENTES } from './rawProdutosDemo.js'
 
+/** Escala sobre o preço de compra RAW + margem típica de loja (evita valores exorbitantes). */
+const PRECO_COMPRA_ESCALA = 0.73
+const MARGEM_MIN = 1.09
+const MARGEM_RNG = 0.14
+
 function round2(n) {
   return Math.round(Number(n) * 100) / 100
 }
@@ -24,9 +29,10 @@ function buildProdutos() {
     throw new Error(`Lista de produtos deve ter 150 itens, tem ${RAW_PRODUTOS.length}`)
   }
   return RAW_PRODUTOS.map(([nome, descricao, categoria, unidade, emoji, compra], i) => {
-    const mark = 1.2 + Math.random() * 0.28
-    const venda = round2(compra * mark)
-    const minimo = Math.max(5, Math.min(45, Math.floor(compra / 3)))
+    const compraBase = round2(compra * PRECO_COMPRA_ESCALA)
+    const mark = MARGEM_MIN + Math.random() * MARGEM_RNG
+    const venda = round2(compraBase * mark)
+    const minimo = Math.max(5, Math.min(45, Math.floor(compraBase / 3)))
     const estoque = 4000 + Math.floor(Math.random() * 3500)
     return {
       id: crypto.randomUUID(),
@@ -36,7 +42,7 @@ function buildProdutos() {
       categoria,
       unidade,
       emoji,
-      compra: round2(compra),
+      compra: compraBase,
       venda,
       tributo: 8,
       operacional: 7,

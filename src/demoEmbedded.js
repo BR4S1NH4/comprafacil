@@ -24,6 +24,11 @@ function calcProduto(p) {
 
 const NUM_VENDAS = 1500
 
+/** Alinhado a api/seed-demo.js — preços mais realistas. */
+const PRECO_COMPRA_ESCALA = 0.73
+const MARGEM_MIN = 1.09
+const MARGEM_RNG = 0.14
+
 function mulberry32(a) {
   return function () {
     let t = (a += 0x6d2b79f5)
@@ -54,9 +59,10 @@ function buildProdutosInternos(rng) {
     throw new Error(`RAW_PRODUTOS deve ter 150 itens, tem ${RAW_PRODUTOS.length}`)
   }
   return RAW_PRODUTOS.map(([nome, descricao, categoria, unidade, emoji, compra], i) => {
-    const mark = 1.2 + rng() * 0.28
-    const venda = round2(compra * mark)
-    const minimo = Math.max(5, Math.min(45, Math.floor(compra / 3)))
+    const compraBase = round2(compra * PRECO_COMPRA_ESCALA)
+    const mark = MARGEM_MIN + rng() * MARGEM_RNG
+    const venda = round2(compraBase * mark)
+    const minimo = Math.max(5, Math.min(45, Math.floor(compraBase / 3)))
     const estoque = 4000 + Math.floor(rng() * 3500)
     return {
       id: demoProdutoUuid(i),
@@ -66,7 +72,7 @@ function buildProdutosInternos(rng) {
       categoria,
       unidade,
       emoji,
-      compra: round2(compra),
+      compra: compraBase,
       venda,
       tributo: 8,
       operacional: 7,
