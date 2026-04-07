@@ -182,19 +182,21 @@ export default function Loja({ produtos, onAddCart }) {
             </div>
           </Box>
         ) : modo === 'grid' ? (
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:16}}>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(100%,160px),1fr))', gap:16}}>
             {filtrados.map(p => <ProductCard key={p.id} produto={p} onAddCart={onAddCart}/>)}
           </div>
         ) : (
           <Box>
-            <table className="table table-hover">
-              <thead>
-                <tr><th>Produto</th><th>Categoria</th><th>Preço cartão</th><th>Preço PIX</th><th>Estoque</th><th>Ação</th></tr>
-              </thead>
-              <tbody>
-                {filtrados.map(p => <ProductRow key={p.id} produto={p} onAddCart={onAddCart}/>)}
-              </tbody>
-            </table>
+            <div className="table-responsive">
+              <table className="table table-hover">
+                <thead>
+                  <tr><th>Produto</th><th>Categoria</th><th>Preço cartão</th><th>Preço PIX</th><th>Estoque</th><th>Ação</th></tr>
+                </thead>
+                <tbody>
+                  {filtrados.map(p => <ProductRow key={p.id} produto={p} onAddCart={onAddCart}/>)}
+                </tbody>
+              </table>
+            </div>
           </Box>
         )}
       </div>

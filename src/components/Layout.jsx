@@ -32,7 +32,9 @@ export default function Layout({
   empresa,
   children,
 }) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+  )
   const isAdmin = area === 'admin'
   const navItems = isAdmin ? ADMIN_NAV : SALES_NAV
   const nomeLoja = empresa?.nomeLoja?.trim() || BRAND_NAME
@@ -43,7 +45,15 @@ export default function Layout({
       {/* ── Header ─────────────────────────────── */}
       <header className="cf-header">
         <a className="cf-logo" title={nomeLoja}>
-          <img className="cf-logo-img" src={headerLogoUrl} alt={nomeLoja} />
+          <img
+            className="cf-logo-img"
+            src={headerLogoUrl}
+            alt={nomeLoja}
+            decoding="async"
+            fetchPriority="high"
+            width={200}
+            height={44}
+          />
         </a>
         <nav className="cf-header-nav">
           <button className="cf-hbtn" onClick={() => setCollapsed(c => !c)} title="Alternar menu">
@@ -93,7 +103,15 @@ export default function Layout({
           {/* User panel */}
           <div className="cf-user-panel">
             <div className="cf-up-avatar">
-              <img src={avatarLogoUrl} alt="" className="cf-up-avatar-img" />
+              <img
+                src={avatarLogoUrl}
+                alt=""
+                className="cf-up-avatar-img"
+                decoding="async"
+                loading="lazy"
+                width={44}
+                height={44}
+              />
             </div>
             <div>
               <div className="cf-up-name">{isAdmin ? 'Administrador' : 'Operador de Vendas'}</div>

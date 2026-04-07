@@ -54,13 +54,22 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body, #root {
-  height: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
   font-family: 'Nunito', 'Source Sans 3', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   font-size: 14px;
   color: var(--text);
   background: var(--body-bg);
   background-image: radial-gradient(ellipse 120% 80% at 50% -20%, rgba(124, 58, 237, 0.09), transparent 55%);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Imagens: evita estouro horizontal no Chrome e em viewports estreitas */
+img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+  -webkit-user-drag: none;
 }
 
 ::-webkit-scrollbar { width: 5px; height: 5px; }
@@ -629,6 +638,111 @@ button { cursor: pointer; font-family: inherit; }
 .tl-title  { font-size: 13px; font-weight: 600; }
 .tl-time   { font-size: 11px; color: var(--text-muted); }
 .tl-body   { font-size: 12px; color: var(--text-muted); }
+
+/* ── Tabelas responsivas (scroll horizontal no mobile) ───── */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Mobile / Chrome Android ───────────────────────────── */
+@media (max-width: 768px) {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  button, .btn, .cf-hbtn, .cf-nav-item, .cf-user-btn {
+    touch-action: manipulation;
+  }
+  .cf-header {
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+  }
+  .cf-header-right {
+    flex-wrap: wrap;
+    gap: 4px;
+    justify-content: flex-end;
+    max-width: min(100%, calc(100vw - 120px));
+  }
+  .cf-header-right .btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .cf-logo {
+    width: auto;
+    min-width: 0;
+    flex: 0 1 auto;
+    max-width: min(200px, 42vw);
+    padding: 0 10px;
+  }
+  .cf-sidebar {
+    position: fixed;
+    left: 0;
+    top: var(--header-h);
+    bottom: 0;
+    z-index: 250;
+    width: min(280px, 86vw) !important;
+    max-height: calc(100dvh - var(--header-h));
+    box-shadow: 4px 0 28px rgba(0, 0, 0, 0.25);
+    transition: transform 0.2s ease;
+  }
+  .cf-sidebar.collapsed {
+    width: min(280px, 86vw) !important;
+    transform: translateX(-100%);
+    overflow: hidden;
+  }
+  .cf-sidebar:not(.collapsed) {
+    transform: translateX(0);
+  }
+  .cf-content {
+    padding-left: env(safe-area-inset-left, 0);
+    padding-right: env(safe-area-inset-right, 0);
+    min-width: 0;
+  }
+  .cf-page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .cf-page-title {
+    font-size: 18px;
+  }
+  .cf-page-body {
+    padding: 16px 14px 28px;
+  }
+  .cf-breadcrumb {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .row {
+    margin: 0 -6px;
+  }
+  .col-1, .col-2, .col-3, .col-4, .col-5, .col-6,
+  .col-7, .col-8, .col-9, .col-10, .col-11, .col-12 {
+    width: 100%;
+    padding: 0 6px;
+    margin-bottom: 8px;
+  }
+  .modal-backdrop {
+    padding: 12px;
+    align-items: flex-end;
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0));
+  }
+  .modal {
+    max-height: min(90vh, 100dvh - 24px);
+  }
+}
+
+@media (max-width: 480px) {
+  .small-box-val {
+    font-size: 28px;
+  }
+  .small-box-icon {
+    font-size: 48px;
+  }
+}
 
 /* ── Print ───────────────────────────────────────────────── */
 @media print {

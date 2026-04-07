@@ -211,10 +211,10 @@ export default function Config({
                     }}
                   >
                     {form.logoDataUrl ? (
-                      <img src={form.logoDataUrl} alt="Logotipo" style={{ maxWidth: '100%', maxHeight: 64, objectFit: 'contain' }} />
+                      <img src={form.logoDataUrl} alt="Logotipo" decoding="async" loading="lazy" style={{ maxWidth: '100%', maxHeight: 64, objectFit: 'contain' }} />
                     ) : (
                       <div className="d-flex flex-col items-center gap-1" style={{ padding: 8 }}>
-                        <img src={DEFAULT_LOGO_URL} alt="" style={{ maxWidth: '100%', maxHeight: 56, objectFit: 'contain' }} />
+                        <img src={DEFAULT_LOGO_URL} alt="" decoding="async" loading="lazy" style={{ maxWidth: '100%', maxHeight: 56, objectFit: 'contain' }} />
                         <span className="text-muted text-xs">Padrão {BRAND_NAME}</span>
                       </div>
                     )}

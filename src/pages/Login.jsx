@@ -93,7 +93,11 @@ export default function Login({ onLogin, onRegister, empresa }) {
               <img
                 src={loginLogoUrl}
                 alt={nomeMarca}
-                style={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }}
+                decoding="async"
+                fetchPriority="high"
+                width={320}
+                height={72}
+                style={{ maxHeight: 72, maxWidth: '100%', width: 'auto', height: 'auto', objectFit: 'contain' }}
               />
             </div>
             <div className="text-muted">
