@@ -2,7 +2,7 @@
  * Demo embutido: 150 produtos + até 1500 vendas em períodos variados (mesma base do api/seed-demo).
  * Usado quando VITE_DEMO_DATA=true e para exportar INITIAL_* no data.js.
  */
-import { RAW_PRODUTOS, CLIENTES } from '../shared/rawProdutosDemo.js'
+import { RAW_PRODUTOS, CLIENTES } from '../api/rawProdutosDemo.js'
 
 /** Igual api/calc.js / data.js — evita import do servidor no bundle Vite. */
 function calcProduto(p) {

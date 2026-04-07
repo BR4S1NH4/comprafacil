@@ -9,7 +9,7 @@ const NUM_VENDAS = 1500
 import { pool, migrate } from './db.js'
 import { calcProduto } from './calc.js'
 import crypto from 'node:crypto'
-import { RAW_PRODUTOS, CLIENTES } from '../shared/rawProdutosDemo.js'
+import { RAW_PRODUTOS, CLIENTES } from './rawProdutosDemo.js'
 
 function round2(n) {
   return Math.round(Number(n) * 100) / 100

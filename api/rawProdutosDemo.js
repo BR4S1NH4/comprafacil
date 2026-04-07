@@ -1,4 +1,4 @@
-﻿/** Lista de 150 produtos + clientes (material de construcao). Alinhar com api/seed-demo. */
+/** Lista de 150 produtos + clientes — usada por seed-demo.js e pelo front (demoEmbedded). */
 export const RAW_PRODUTOS = [
   // Cimento, cal e argamassa
   ['Cimento CP-II-E-32 50kg', 'Saco para concreto e estruturas', 'Cimento e cal', 'saco', '🏗️', 38.9],

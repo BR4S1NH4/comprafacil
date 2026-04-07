@@ -1,12 +1,12 @@
+# Build com contexto na pasta api (compatível com Render: Root Directory = api).
 FROM node:22-alpine
 
 WORKDIR /api
 
-COPY api/package.json api/package-lock.json* ./
+COPY package.json package-lock.json* ./
 RUN npm install
 
-COPY api/ .
-COPY shared /shared
+COPY . .
 
 EXPOSE 3001
 
