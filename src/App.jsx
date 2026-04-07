@@ -215,7 +215,7 @@ export default function App() {
     const data = await loginRequest(usuario, senha)
     if (!data?.token || !data?.user) {
       throw new Error(
-        'Resposta invalida do servidor. No Render, defina VITE_API_BASE_URL com a URL publica da API (Web Service), sem barra no final.'
+        'Resposta invalida do servidor. No Render (Static Site): (1) Environment -> VITE_API_BASE_URL = URL publica da API, sem barra no final, e redeploy; OU (2) Redirects/Rewrites -> Rewrite: Source /api/* -> Destination https://SUA-API.onrender.com/api/*'
       )
     }
     const u = data.user
