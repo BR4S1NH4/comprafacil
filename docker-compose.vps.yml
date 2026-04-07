@@ -21,8 +21,8 @@ services:
 
   api:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: api/Dockerfile
     environment:
       DATABASE_URL: postgresql://comprafacil:${POSTGRES_PASSWORD}@postgres:5432/comprafacil
     depends_on:

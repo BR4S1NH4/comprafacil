@@ -2,8 +2,6 @@
    Castor Construtor — Data & Business Logic
    ═══════════════════════════════════════════════════════════ */
 
-export const INITIAL_PRODUCTS = []
-
 export const CATEGORIAS = ['Estrutura','Acabamento','Cobertura','Insumos','Hidráulica','Elétrica','Ferragens']
 export const UNIDADES   = ['unidade','saco','lata','m²','m³','rolo','cento','milheiro','barra','par','caixa','kg','litro']
 export const EMOJIS     = ['📦','🏗️','🎨','🧱','⛏️','🔩','🏠','🪣','⬜','🪟','🚪','🔌','💧','🪜','⚙️','🔧','🔑','🪤','🧰','🛢️']

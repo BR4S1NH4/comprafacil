@@ -27,6 +27,10 @@ import {
   deleteProdutoRequest,
   checkoutPedidoRequest,
 } from './services/dataApi'
+import { calcProduto } from './data'
+
+const DEMO_MODE =
+  import.meta.env.VITE_DEMO_DATA === 'true' || import.meta.env.VITE_DEMO_DATA === '1'
 
 const AREA_DEFAULT_SCREEN = {
   admin: 'dashboard',
@@ -74,6 +78,25 @@ export default function App() {
     let cancelled = false
     setDataReady(false)
     setDataLoadError('')
+    if (DEMO_MODE) {
+      import('./demoEmbedded.js')
+        .then((m) => {
+          if (cancelled) return
+          setProdutos(m.INITIAL_PRODUCTS)
+          setPedidos(m.INITIAL_PEDIDOS)
+          setRankingProdutos(m.DEMO_RANKING)
+          setDataReady(true)
+        })
+        .catch((e) => {
+          if (!cancelled) {
+            console.error(e)
+            setDataLoadError(e.message || 'Falha ao carregar dados de demonstracao.')
+          }
+        })
+      return () => {
+        cancelled = true
+      }
+    }
     ;(async () => {
       try {
         const [prods, peds, rank, emp] = await Promise.all([
@@ -101,6 +124,10 @@ export default function App() {
 
   const salvarEmpresa = async (dados) => {
     if (!auth?.token) return
+    if (DEMO_MODE) {
+      setEmpresa((prev) => ({ ...prev, ...dados }))
+      return
+    }
     try {
       const merged = await saveEmpresaRequest(auth.token, dados)
       setEmpresa(merged)
@@ -111,6 +138,21 @@ export default function App() {
 
   const salvarProduto = async (produto) => {
     const isEdit = produtos.some((p) => p.id === produto.id)
+    if (DEMO_MODE) {
+      const saved = isEdit
+        ? { ...produto }
+        : { ...produto, id: crypto.randomUUID() }
+      setProdutos((prev) => {
+        const idx = prev.findIndex((p) => p.id === saved.id)
+        if (idx >= 0) {
+          const u = [...prev]
+          u[idx] = saved
+          return u
+        }
+        return [...prev, saved]
+      })
+      return
+    }
     try {
       const saved = await saveProdutoRequest(auth.token, produto, isEdit)
       setProdutos((prev) => {
@@ -128,6 +170,16 @@ export default function App() {
   }
 
   const excluirProduto = async (id) => {
+    if (DEMO_MODE) {
+      const used = pedidos.some((p) => p.lineItems?.some((l) => l.produtoId === id))
+      if (used) {
+        window.alert('Nao e possivel excluir: existem pedidos com este produto.')
+        return
+      }
+      setProdutos((prev) => prev.filter((p) => p.id !== id))
+      setCart((prev) => prev.filter((i) => i.produto.id !== id))
+      return
+    }
     try {
       await deleteProdutoRequest(auth.token, id)
       setProdutos((prev) => prev.filter((p) => p.id !== id))
@@ -163,6 +215,85 @@ export default function App() {
 
   const finalizarPedido = async (payMode) => {
     const items = cart.map((i) => ({ produtoId: i.produto.id, qty: i.qty }))
+    if (DEMO_MODE) {
+      const { computeDemoRanking } = await import('./demoEmbedded.js')
+      const qtyById = new Map()
+      for (const it of items) {
+        const add = Math.max(0, Math.floor(Number(it.qty) || 0))
+        if (!it.produtoId || add <= 0) continue
+        qtyById.set(String(it.produtoId), (qtyById.get(String(it.produtoId)) || 0) + add)
+      }
+      if (qtyById.size === 0) {
+        window.alert('Carrinho vazio.')
+        throw new Error('Carrinho vazio.')
+      }
+      const ids = [...qtyById.keys()]
+      const pMap = new Map(produtos.map((p) => [p.id, p]))
+      for (const id of ids) {
+        if (!pMap.has(id)) {
+          window.alert('Produto nao encontrado.')
+          throw new Error('Produto nao encontrado.')
+        }
+      }
+      for (const [id, q] of qtyById) {
+        const row = pMap.get(id)
+        if (row.estoque < q) {
+          window.alert(`Estoque insuficiente para "${row.nome}".`)
+          throw new Error('Estoque insuficiente.')
+        }
+      }
+      let subtotal = 0
+      let lucroLinhas = 0
+      for (const [id, q] of qtyById) {
+        const prod = pMap.get(id)
+        subtotal += prod.venda * q
+        const c = calcProduto(prod)
+        lucroLinhas += q * c.margem
+      }
+      let desconto = 0
+      if (payMode === 'pix') {
+        for (const [id, q] of qtyById) {
+          const prod = pMap.get(id)
+          const c = calcProduto(prod)
+          desconto += (prod.venda - c.precoPixFinal) * q
+        }
+      }
+      const round2 = (n) => Math.round(Number(n) * 100) / 100
+      const total = round2(subtotal - desconto)
+      const itensQtd = [...qtyById.values()].reduce((a, b) => a + b, 0)
+      const dataMs = Date.now()
+      const lineItems = []
+      for (const [id, q] of qtyById) {
+        const prod = pMap.get(id)
+        lineItems.push({
+          produtoId: id,
+          qty: q,
+          subtotal: round2(prod.venda * q),
+        })
+      }
+      const pedido = {
+        id: crypto.randomUUID(),
+        data: dataMs,
+        cliente: 'Cliente Web',
+        pagamento: payMode,
+        total,
+        desconto: round2(desconto),
+        lucroEstimado: round2(lucroLinhas),
+        status: 'concluido',
+        itens: itensQtd,
+        lineItems,
+      }
+      const nextProdutos = produtos.map((p) => {
+        const q = qtyById.get(String(p.id))
+        if (!q) return p
+        return { ...p, estoque: p.estoque - q }
+      })
+      setPedidos((prev) => [pedido, ...prev])
+      setProdutos(nextProdutos)
+      setRankingProdutos(computeDemoRanking(nextProdutos, [pedido, ...pedidos]))
+      limparCarrinho()
+      return pedido
+    }
     try {
       const data = await checkoutPedidoRequest(auth.token, { payMode, items })
       setPedidos((prev) => [data.pedido, ...prev])
