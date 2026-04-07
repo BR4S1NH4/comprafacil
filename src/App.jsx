@@ -213,16 +213,22 @@ export default function App() {
 
   const handleLogin = async (usuario, senha) => {
     const data = await loginRequest(usuario, senha)
+    if (!data?.token || !data?.user) {
+      throw new Error(
+        'Resposta invalida do servidor. No Render, defina VITE_API_BASE_URL com a URL publica da API (Web Service), sem barra no final.'
+      )
+    }
+    const u = data.user
     const nextAuth = {
       token: data.token,
-      userName: data.user.nome || data.user.usuario,
-      role: data.user.role,
+      userName: u.nome || u.usuario,
+      role: u.role,
     }
     setAuth(nextAuth)
-    const nextArea = data.user.role === 'admin' ? 'admin' : 'vendas'
+    const nextArea = u.role === 'admin' ? 'admin' : 'vendas'
     setArea(nextArea)
     setScreen(AREA_DEFAULT_SCREEN[nextArea])
-    if (data.user.role === 'admin') await carregarUsuarios(data.token)
+    if (u.role === 'admin') await carregarUsuarios(data.token)
   }
 
   const handleRegister = async (nome, usuario, senha) => {
