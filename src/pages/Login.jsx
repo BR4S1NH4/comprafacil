@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { Lock, User, LogIn, AlertTriangle, UserPlus } from 'lucide-react'
 import { DEFAULT_COMPANY_SETTINGS } from '../utils/companySettings'
+import { BRAND_NAME, resolveLogoUrls } from '../branding'
 
 export default function Login({ onLogin, onRegister, empresa }) {
   const e = empresa || DEFAULT_COMPANY_SETTINGS
-  const nomeMarca = (e.nomeLoja || 'CompraFacil').trim()
-  const logoUrl = e.logoDataUrl
+  const nomeMarca = (e.nomeLoja || BRAND_NAME).trim()
+  const { header: loginLogoUrl } = resolveLogoUrls(e)
   const [mode, setMode] = useState('login')
   const [nome, setNome] = useState('')
   const [usuario, setUsuario] = useState('')
@@ -88,13 +89,13 @@ export default function Login({ onLogin, onRegister, empresa }) {
         </div>
         <div className="box-body">
           <div style={{ textAlign: 'center', marginBottom: 16 }}>
-            {logoUrl ? (
-              <div style={{ marginBottom: 12 }}>
-                <img src={logoUrl} alt="" style={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }} />
-              </div>
-            ) : (
-              <div style={{ fontSize: 30, fontWeight: 700, color: '#6D28D9' }}>{nomeMarca}</div>
-            )}
+            <div style={{ marginBottom: 12 }}>
+              <img
+                src={loginLogoUrl}
+                alt={nomeMarca}
+                style={{ maxHeight: 72, maxWidth: '100%', objectFit: 'contain' }}
+              />
+            </div>
             <div className="text-muted">
               {mode === 'login' ? 'Entre com sua conta' : 'Crie sua conta para usar a area de vendas'}
             </div>
@@ -129,6 +130,7 @@ export default function Login({ onLogin, onRegister, empresa }) {
 
           <button
             type="button"
+            data-testid="admin-login-open"
             className="btn btn-warning btn-block mb-2"
             onClick={() => {
               setAdminOpen(true)
@@ -174,6 +176,7 @@ export default function Login({ onLogin, onRegister, empresa }) {
               <div className="input-group">
                 <span className="input-addon input-addon-left"><User size={13} /></span>
                 <input
+                  data-testid="login-usuario"
                   value={usuario}
                   onChange={e => {
                     setUsuario(e.target.value)
@@ -191,6 +194,7 @@ export default function Login({ onLogin, onRegister, empresa }) {
               <div className="input-group">
                 <span className="input-addon input-addon-left"><Lock size={13} /></span>
                 <input
+                  data-testid="login-senha"
                   type="password"
                   value={senha}
                   onChange={e => {
@@ -223,6 +227,7 @@ export default function Login({ onLogin, onRegister, empresa }) {
             )}
 
             <button
+              data-testid="login-submit"
               type="submit"
               className={`btn btn-block ${mode === 'login' ? 'btn-primary' : 'btn-success'}`}
               disabled={loading}
@@ -255,6 +260,7 @@ export default function Login({ onLogin, onRegister, empresa }) {
                   <div className="input-group">
                     <span className="input-addon input-addon-left"><User size={13} /></span>
                     <input
+                      data-testid="admin-usuario"
                       value={adminUsuario}
                       onChange={e => {
                         setAdminUsuario(e.target.value)
@@ -270,6 +276,7 @@ export default function Login({ onLogin, onRegister, empresa }) {
                   <div className="input-group">
                     <span className="input-addon input-addon-left"><Lock size={13} /></span>
                     <input
+                      data-testid="admin-senha"
                       type="password"
                       value={adminSenha}
                       onChange={e => {
@@ -282,7 +289,7 @@ export default function Login({ onLogin, onRegister, empresa }) {
                     />
                   </div>
                 </div>
-                <button type="submit" className="btn btn-warning btn-block" disabled={adminLoading}>
+                <button data-testid="admin-submit" type="submit" className="btn btn-warning btn-block" disabled={adminLoading}>
                   <LogIn size={14} /> {adminLoading ? 'Entrando...' : 'Entrar como administrador'}
                 </button>
               </form>

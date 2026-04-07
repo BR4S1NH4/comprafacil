@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Castor Construtor">
+  <defs>
+    <linearGradient id="cc-hat" x1="12" y1="6" x2="36" y2="22" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FBBF24"/>
+      <stop offset="1" stop-color="#D97706"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="10" fill="#1e1b2e"/>
+  <!-- Capacete -->
+  <path fill="url(#cc-hat)" d="M10 20c0-6 5.5-11 14-11s14 5 14 11v3H10v-3z"/>
+  <path fill="#B45309" d="M10 20h28v4c0 1-1 2-2 2H12c-1 0-2-1-2-2v-4z"/>
+  <!-- Focinho -->
+  <ellipse cx="24" cy="31" rx="13" ry="10" fill="#92400E"/>
+  <ellipse cx="24" cy="29" rx="10" ry="7" fill="#A16207"/>
+  <!-- Dentes -->
+  <rect x="17" y="35" width="5" height="6" rx="1" fill="#FEF3C7"/>
+  <rect x="26" y="35" width="5" height="6" rx="1" fill="#FEF3C7"/>
+  <!-- Nariz -->
+  <ellipse cx="24" cy="30" rx="3.5" ry="2.5" fill="#292524"/>
+  <!-- Olhos -->
+  <circle cx="18" cy="26" r="2" fill="#292524"/>
+  <circle cx="30" cy="26" r="2" fill="#292524"/>
+  <!-- Orelhas -->
+  <ellipse cx="11" cy="28" rx="4" ry="5" fill="#78350F" transform="rotate(-15 11 28)"/>
+  <ellipse cx="37" cy="28" rx="4" ry="5" fill="#78350F" transform="rotate(15 37 28)"/>
+</svg>

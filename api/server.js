@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3001
 const RESERVED_ADMIN_USERS = new Set(['TIAGO GABRIEL', 'ISRAEL'])
 
 const DEFAULT_EMPRESA = {
-  nomeLoja: 'ConstruFácil',
+  nomeLoja: 'Castor Construtor',
   razaoSocial: '',
   cnpj: '',
   email: '',

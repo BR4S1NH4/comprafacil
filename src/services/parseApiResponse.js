@@ -20,7 +20,7 @@ export async function parseApiResponse(res) {
       )
     }
     throw new Error(
-      `Falha na requisicao (HTTP ${res.status}). Verifique se a API CompraFacil esta rodando na porta 3001.`
+      `Falha na requisicao (HTTP ${res.status}). Verifique se a API Castor Construtor esta rodando na porta 3001.`
     )
   }
   return payload

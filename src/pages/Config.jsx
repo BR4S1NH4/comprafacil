@@ -3,6 +3,7 @@ import { PageHeader, Box } from '../components/Layout'
 import { Save, AlertTriangle, CheckCircle, Store, Tag, Shield, Users, RefreshCw, KeyRound, ImageIcon, Trash2 } from 'lucide-react'
 import LogoCropModal from '../components/LogoCropModal'
 import { DEFAULT_COMPANY_SETTINGS, MAX_LOGO_BYTES, MAX_LOGO_INPUT_BYTES } from '../utils/companySettings'
+import { BRAND_NAME, DEFAULT_LOGO_URL } from '../branding'
 
 export default function Config({
   initialTab = 'geral',
@@ -212,7 +213,10 @@ export default function Config({
                     {form.logoDataUrl ? (
                       <img src={form.logoDataUrl} alt="Logotipo" style={{ maxWidth: '100%', maxHeight: 64, objectFit: 'contain' }} />
                     ) : (
-                      <span className="text-muted text-sm" style={{ padding: 8 }}>Nenhuma imagem</span>
+                      <div className="d-flex flex-col items-center gap-1" style={{ padding: 8 }}>
+                        <img src={DEFAULT_LOGO_URL} alt="" style={{ maxWidth: '100%', maxHeight: 56, objectFit: 'contain' }} />
+                        <span className="text-muted text-xs">Padrão {BRAND_NAME}</span>
+                      </div>
                     )}
                   </div>
                   <div className="d-flex flex-col gap-2">
@@ -376,7 +380,7 @@ export default function Config({
               <table style={{width:'100%',fontSize:13}}>
                 <tbody>
                   {[
-                    ['Sistema',   `${form.nomeLoja || 'ConstruFácil'} — v1.0`],
+                    ['Sistema',   `${form.nomeLoja || BRAND_NAME} — v1.0`],
                     ['Framework', 'React 18 + Vite'],
                     ['Gráficos',  'Recharts'],
                     ['Ícones',    'Lucide React'],

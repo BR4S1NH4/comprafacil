@@ -1,8 +1,8 @@
-# ConstruFácil — Descrição Completa do Projeto para Cursor AI
+# Castor Construtor — Descrição Completa do Projeto para Cursor AI
 
 ## 1. Visão Geral
 
-**ConstruFácil** é um sistema de e-commerce e gestão administrativa para uma loja virtual de material de construção. O projeto é um SPA (Single Page Application) desenvolvido com **React 18 + Vite**, sem backend — todo o estado é gerenciado em memória via `useState`. O layout segue o padrão visual **AdminLTE** (sidebar escura, header azul, fundo cinza), implementado com CSS puro (sem Tailwind, sem MUI, sem Bootstrap JS).
+**Castor Construtor** é um sistema de e-commerce e gestão administrativa para uma loja virtual de material de construção. O projeto é um SPA (Single Page Application) desenvolvido com **React 18 + Vite**, sem backend — todo o estado é gerenciado em memória via `useState`. O layout segue o padrão visual **AdminLTE** (sidebar escura, header azul, fundo cinza), implementado com CSS puro (sem Tailwind, sem MUI, sem Bootstrap JS).
 
 ### Propósito educacional
 O sistema foi criado como projeto escolar para demonstrar conceitos de:
@@ -33,7 +33,7 @@ O sistema foi criado como projeto escolar para demonstrar conceitos de:
 ## 3. Estrutura de Arquivos
 
 ```
-construfacil/
+castor-construtor/
 ├── index.html                    ← entry point HTML (carrega Source Sans 3 do Google Fonts)
 ├── package.json                  ← deps: react, react-dom, recharts, lucide-react, vite
 ├── vite.config.js                ← config padrão Vite com plugin React
@@ -132,7 +132,7 @@ CSS puro com variáveis CSS customizadas. **Nenhum framework de CSS é usado.** 
 - `.cf-wrap` — wrapper geral (flex-column, min-height 100vh)
 - `.cf-body` — área abaixo do header (flex-row)
 - `.cf-header` — barra de topo azul, sticky, z-index 300
-- `.cf-logo` — logo ConstruFácil (azul escuro, 230px)
+- `.cf-logo` — logo Castor Construtor (azul escuro, 230px)
 - `.cf-sidebar` — sidebar escura, flex-column, overflow-y auto
 - `.cf-sidebar.collapsed` — largura 0, overflow hidden
 - `.cf-content` — área de conteúdo principal (flex:1)

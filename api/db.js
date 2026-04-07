@@ -6,11 +6,45 @@ const connectionString =
   process.env.DATABASE_URL ||
   'postgresql://comprafacil:comprafacil_secret@localhost:5432/comprafacil'
 
-export const pool = new Pool({
-  connectionString,
-  max: 15,
-  idleTimeoutMillis: 30_000,
-})
+/**
+ * Render, RDS, etc.: Postgres gerenciado costuma exigir TLS.
+ * Localhost / container `postgres` na rede Docker: sem SSL.
+ * DATABASE_SSL=true|false força o comportamento (útil em casos especiais).
+ */
+function buildPoolConfig() {
+  const config = {
+    connectionString,
+    max: 15,
+    idleTimeoutMillis: 30_000,
+  }
+
+  if (process.env.DATABASE_SSL === 'false') {
+    return config
+  }
+  if (process.env.DATABASE_SSL === 'true') {
+    config.ssl = { rejectUnauthorized: false }
+    return config
+  }
+
+  if (!process.env.DATABASE_URL) {
+    return config
+  }
+
+  try {
+    const u = new URL(connectionString)
+    const host = u.hostname
+    const local = host === 'localhost' || host === '127.0.0.1' || host === 'postgres'
+    if (!local) {
+      config.ssl = { rejectUnauthorized: false }
+    }
+  } catch {
+    // connectionString inválida: deixa o Pool falhar depois com mensagem clara
+  }
+
+  return config
+}
+
+export const pool = new Pool(buildPoolConfig())
 
 const MIGRATIONS = [
   `CREATE TABLE IF NOT EXISTS users (

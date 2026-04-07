@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════
-   ConstruFácil — Data & Business Logic
+   Castor Construtor — Data & Business Logic
    ═══════════════════════════════════════════════════════════ */
 
 export const INITIAL_PRODUCTS = []

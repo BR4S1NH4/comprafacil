@@ -1,7 +1,9 @@
+import { BRAND_NAME } from '../branding'
+
 const STORAGE_KEY = 'cf_company_settings_v1'
 
 export const DEFAULT_COMPANY_SETTINGS = {
-  nomeLoja: 'ConstruFácil',
+  nomeLoja: BRAND_NAME,
   razaoSocial: '',
   cnpj: '',
   email: '',

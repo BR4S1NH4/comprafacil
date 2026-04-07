@@ -4,6 +4,7 @@ import {
   ClipboardList, BarChart3, Settings, LogOut, KeyRound,
   Bell, Menu, ChevronRight, AlertTriangle, X
 } from 'lucide-react'
+import { BRAND_NAME, resolveLogoUrls } from '../branding'
 
 const ADMIN_NAV = [
   { id:'dashboard', label:'Dashboard',     icon:LayoutDashboard },
@@ -17,13 +18,6 @@ const SALES_NAV = [
   { id:'loja',      label:'Balcão de Vendas', icon:ShoppingBag },
   { id:'carrinho',  label:'Carrinho',         icon:ShoppingCart },
 ]
-
-function BrandTitle({ nomeLoja }) {
-  const raw = (nomeLoja || 'ConstruFácil').trim()
-  const i = raw.indexOf(' ')
-  if (i === -1) return <>{raw}</>
-  return <>{raw.slice(0, i)}<span>{raw.slice(i)}</span></>
-}
 
 export default function Layout({
   active,
@@ -41,15 +35,15 @@ export default function Layout({
   const [collapsed, setCollapsed] = useState(false)
   const isAdmin = area === 'admin'
   const navItems = isAdmin ? ADMIN_NAV : SALES_NAV
-  const nomeLoja = empresa?.nomeLoja?.trim() || 'ConstruFácil'
-  const logoUrl = empresa?.logoDataUrl
+  const nomeLoja = empresa?.nomeLoja?.trim() || BRAND_NAME
+  const { header: headerLogoUrl, avatar: avatarLogoUrl } = resolveLogoUrls(empresa)
 
   return (
     <div className="cf-wrap">
       {/* ── Header ─────────────────────────────── */}
       <header className="cf-header">
         <a className="cf-logo" title={nomeLoja}>
-          <BrandTitle nomeLoja={nomeLoja} />
+          <img className="cf-logo-img" src={headerLogoUrl} alt={nomeLoja} />
         </a>
         <nav className="cf-header-nav">
           <button className="cf-hbtn" onClick={() => setCollapsed(c => !c)} title="Alternar menu">
@@ -98,7 +92,9 @@ export default function Layout({
         <aside className={`cf-sidebar${collapsed ? ' collapsed' : ''}`}>
           {/* User panel */}
           <div className="cf-user-panel">
-            <div className="cf-up-avatar">{logoUrl ? <img src={logoUrl} alt="" className="cf-up-avatar-img"/> : 'A'}</div>
+            <div className="cf-up-avatar">
+              <img src={avatarLogoUrl} alt="" className="cf-up-avatar-img" />
+            </div>
             <div>
               <div className="cf-up-name">{isAdmin ? 'Administrador' : 'Operador de Vendas'}</div>
               <div className="cf-up-company" title={nomeLoja}>{nomeLoja}</div>
