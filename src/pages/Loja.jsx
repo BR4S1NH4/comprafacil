@@ -8,6 +8,7 @@ import { pickOfertasDoDia } from '../utils/promoProducts'
 import StoreAdSlot from '../components/StoreAdSlot'
 import StorePromoCarousel from '../components/StorePromoCarousel'
 import StoreFooterPromoBar from '../components/StoreFooterPromoBar'
+import ProductPageSlide from '../components/ProductPageSlide'
 import PaginationBar from '../components/PaginationBar'
 import { mergeVitrine, AD_SLOT_META } from '../utils/vitrineSettings'
 
@@ -115,11 +116,14 @@ function ProductCard({ produto, onAddCart }) {
   )
 }
 
-function ProductRow({ produto, onAddCart }) {
+function ProductRow({ produto, onAddCart, animIndex = 0 }) {
   const calc = calcProduto(produto)
   const st = stockStatus(produto)
   return (
-    <tr>
+    <tr
+      className="cf-product-page-item"
+      style={{ '--cf-page-i': animIndex }}
+    >
       <td>
         <div className="d-flex items-center gap-2">
           {produto.imagemDataUrl ? (
@@ -158,6 +162,7 @@ export default function Loja({ produtos, onAddCart, vitrineAmazon, empresa, busc
   const [categoria, setCat]   = useState('todas')
   const [modo, setModo]       = useState('grid')
   const [pagina, setPagina]   = useState(1)
+  const [pageDir, setPageDir] = useState(1)
   const gridTopRef = useRef(null)
   const searchDebounceRef = useRef(null)
 
@@ -178,9 +183,11 @@ export default function Loja({ produtos, onAddCart, vitrineAmazon, empresa, busc
 
   useEffect(() => {
     setPagina(1)
+    setPageDir(1)
   }, [busca, filtro, categoria])
 
   const goToPage = (p) => {
+    setPageDir(p > pagina ? 1 : p < pagina ? -1 : pageDir)
     setPagina(p)
     requestAnimationFrame(() => {
       gridTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -317,9 +324,31 @@ export default function Loja({ produtos, onAddCart, vitrineAmazon, empresa, busc
           </Box>
         ) : modo === 'grid' ? (
           <>
-            <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(min(100%,160px),1fr))', gap:16}}>
-              {paginaItens.map(p => <ProductCard key={p.id} produto={p} onAddCart={onAddCart}/>)}
-            </div>
+            <ProductPageSlide
+              page={paginaSafe}
+              direction={pageDir}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+            >
+              <div
+                className="cf-product-page-grid"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill,minmax(min(100%,160px),1fr))',
+                  gap: 16,
+                }}
+              >
+                {paginaItens.map((p, i) => (
+                  <div
+                    key={p.id}
+                    className="cf-product-page-item"
+                    style={{ '--cf-page-i': i }}
+                  >
+                    <ProductCard produto={p} onAddCart={onAddCart} />
+                  </div>
+                ))}
+              </div>
+            </ProductPageSlide>
             <PaginationBar
               page={paginaSafe}
               totalPages={totalPages}
@@ -330,18 +359,32 @@ export default function Loja({ produtos, onAddCart, vitrineAmazon, empresa, busc
           </>
         ) : (
           <>
-            <Box>
-              <div className="table-responsive">
-                <table className="table table-hover">
-                  <thead>
-                    <tr><th>Produto</th><th>Categoria</th><th>Preço cartão</th><th>Preço PIX</th><th>Estoque</th><th>Ação</th></tr>
-                  </thead>
-                  <tbody>
-                    {paginaItens.map(p => <ProductRow key={p.id} produto={p} onAddCart={onAddCart}/>)}
-                  </tbody>
-                </table>
-              </div>
-            </Box>
+            <ProductPageSlide
+              page={paginaSafe}
+              direction={pageDir}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+            >
+              <Box>
+                <div className="table-responsive">
+                  <table className="table table-hover">
+                    <thead>
+                      <tr><th>Produto</th><th>Categoria</th><th>Preço cartão</th><th>Preço PIX</th><th>Estoque</th><th>Ação</th></tr>
+                    </thead>
+                    <tbody>
+                      {paginaItens.map((p, i) => (
+                        <ProductRow
+                          key={p.id}
+                          produto={p}
+                          onAddCart={onAddCart}
+                          animIndex={i}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Box>
+            </ProductPageSlide>
             <PaginationBar
               page={paginaSafe}
               totalPages={totalPages}

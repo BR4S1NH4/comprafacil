@@ -23,6 +23,9 @@ export default function PaginationBar({ page, totalPages, totalItems, pageSize, 
     <nav className="cf-pagination" aria-label="Paginação de produtos">
       <span className="cf-pagination-info text-sm text-muted">
         {start}–{end} de {totalItems} produtos
+        {totalPages > 1 && (
+          <span className="cf-pagination-swipe-hint"> · deslize para mudar de página</span>
+        )}
       </span>
       <div className="cf-pagination-controls">
         <button

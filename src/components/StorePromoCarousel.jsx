@@ -5,6 +5,34 @@ import { fmt } from '../data'
 const AUTO_MS = 4500
 const GAP = 12
 
+function getCards(el) {
+  return [...el.querySelectorAll('.cf-promo-card')]
+}
+
+function findCenteredCardIndex(el) {
+  const cards = getCards(el)
+  if (!cards.length) return 0
+  const vp = el.getBoundingClientRect()
+  const vpCenter = vp.left + vp.width / 2
+  let bestIdx = 0
+  let bestDist = Infinity
+  cards.forEach((card, i) => {
+    const rect = card.getBoundingClientRect()
+    const dist = Math.abs(rect.left + rect.width / 2 - vpCenter)
+    if (dist < bestDist) {
+      bestDist = dist
+      bestIdx = i
+    }
+  })
+  return bestIdx
+}
+
+function scrollToCardIndex(el, index, behavior = 'smooth') {
+  const card = getCards(el)[index]
+  if (!card) return
+  card.scrollIntoView({ behavior, inline: 'center', block: 'nearest' })
+}
+
 export default function StorePromoCarousel({
   ofertas = [],
   onAddCart,
@@ -17,11 +45,16 @@ export default function StorePromoCarousel({
     else if (onAddCart) onAddCart(payload?.p ?? payload)
   }
   const viewportRef = useRef(null)
+  const programmaticScrollRef = useRef(false)
+  const activeIndexRef = useRef(0)
   const [paused, setPaused] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
-  const [canPrev, setCanPrev] = useState(false)
-  const [canNext, setCanNext] = useState(false)
   const pauseTimerRef = useRef(null)
+
+  const setActive = useCallback((idx) => {
+    activeIndexRef.current = idx
+    setActiveIndex(idx)
+  }, [])
 
   const pauseBriefly = useCallback(() => {
     setPaused(true)
@@ -36,41 +69,64 @@ export default function StorePromoCarousel({
     []
   )
 
-  const getStep = useCallback(() => {
+  const markProgrammaticScroll = useCallback(() => {
+    programmaticScrollRef.current = true
+    window.setTimeout(() => {
+      programmaticScrollRef.current = false
+    }, 500)
+  }, [])
+
+  const pulseSlide = useCallback((dir) => {
     const el = viewportRef.current
-    const card = el?.querySelector('.cf-promo-card')
-    return (card?.offsetWidth || 148) + GAP
+    if (!el) return
+    el.classList.remove('is-slide-forward', 'is-slide-back')
+    el.classList.add(dir > 0 ? 'is-slide-forward' : 'is-slide-back')
+    window.setTimeout(() => {
+      el.classList.remove('is-slide-forward', 'is-slide-back')
+    }, 480)
   }, [])
 
   const syncScrollState = useCallback(() => {
     const el = viewportRef.current
-    if (!el) return
-    const step = getStep()
-    const max = Math.max(0, el.scrollWidth - el.clientWidth)
-    const idx = step > 0 ? Math.round(el.scrollLeft / step) : 0
-    setActiveIndex(Math.min(idx, Math.max(0, ofertas.length - 1)))
-    setCanPrev(el.scrollLeft > 4)
-    setCanNext(el.scrollLeft < max - 4)
-  }, [getStep, ofertas.length])
+    if (!el || programmaticScrollRef.current) return
+    const centered = findCenteredCardIndex(el)
+    setActive(centered)
+  }, [setActive])
 
   const scrollByCard = useCallback(
     (dir) => {
       const el = viewportRef.current
       if (!el) return
-      const step = getStep()
-      const max = Math.max(0, el.scrollWidth - el.clientWidth)
-      let next = el.scrollLeft + dir * step
-      if (next > max + 2) next = 0
-      if (next < -2) next = max
-      el.scrollTo({ left: next, behavior: 'smooth' })
+      const cards = getCards(el)
+      if (cards.length <= 1) return
+
+      const cur = activeIndexRef.current
+      const nextIdx = (cur + dir + cards.length) % cards.length
+      const wrapping =
+        (dir > 0 && cur === cards.length - 1 && nextIdx === 0) ||
+        (dir < 0 && cur === 0 && nextIdx === cards.length - 1)
+      const behavior = wrapping ? 'auto' : 'smooth'
+
+      pulseSlide(dir)
+      markProgrammaticScroll()
+      setActive(nextIdx)
+      scrollToCardIndex(el, nextIdx, behavior)
+      if (wrapping) {
+        requestAnimationFrame(() => scrollToCardIndex(el, nextIdx, 'smooth'))
+      }
     },
-    [getStep]
+    [markProgrammaticScroll, pulseSlide, setActive]
   )
 
   const goToIndex = (index) => {
     const el = viewportRef.current
     if (!el) return
-    el.scrollTo({ left: index * getStep(), behavior: 'smooth' })
+    const cards = getCards(el)
+    const safe = Math.max(0, Math.min(cards.length - 1, index))
+    pulseSlide(safe > activeIndexRef.current ? 1 : -1)
+    markProgrammaticScroll()
+    setActive(safe)
+    scrollToCardIndex(el, safe)
   }
 
   useEffect(() => {
@@ -89,6 +145,12 @@ export default function StorePromoCarousel({
   }, [syncScrollState, ofertas.length])
 
   useEffect(() => {
+    setActive(0)
+    const el = viewportRef.current
+    if (el) el.scrollLeft = 0
+  }, [ofertas.length, setActive])
+
+  useEffect(() => {
     if (ofertas.length <= 1 || paused) return
     const id = setInterval(() => scrollByCard(1), AUTO_MS)
     return () => clearInterval(id)
@@ -100,7 +162,7 @@ export default function StorePromoCarousel({
 
   return (
     <section
-      className="cf-promo-carousel cf-ad-animate-in"
+      className="cf-promo-carousel cf-ad-animate-in cf-promo-carousel--loop"
       style={{ '--cf-ad-delay': '40ms' }}
       aria-label={title}
       onMouseEnter={() => setPaused(true)}
@@ -111,25 +173,19 @@ export default function StorePromoCarousel({
         <h2>
           <Sparkles size={18} aria-hidden /> {title}
         </h2>
-          <p className="cf-promo-carousel-sub">
-            {cardHint || 'Deslize ou toque nas setas · rolagem automática'}
-          </p>
+        <p className="cf-promo-carousel-sub">
+          {cardHint || 'Deslize ou toque nas setas · rolagem em loop'}
+        </p>
       </div>
 
       <div className="cf-promo-carousel-stage">
         {showArrows && (
           <>
-            <div
-              className={`cf-promo-carousel-fade cf-promo-carousel-fade--left${canPrev ? '' : ' is-hidden'}`}
-              aria-hidden
-            />
-            <div
-              className={`cf-promo-carousel-fade cf-promo-carousel-fade--right${canNext ? '' : ' is-hidden'}`}
-              aria-hidden
-            />
+            <div className="cf-promo-carousel-fade cf-promo-carousel-fade--left" aria-hidden />
+            <div className="cf-promo-carousel-fade cf-promo-carousel-fade--right" aria-hidden />
             <button
               type="button"
-              className={`cf-promo-carousel-arrow cf-promo-carousel-arrow--prev${canPrev ? '' : ' is-hidden'}`}
+              className="cf-promo-carousel-arrow cf-promo-carousel-arrow--prev"
               onClick={() => scrollByCard(-1)}
               aria-label="Ofertas anteriores"
             >
@@ -137,7 +193,7 @@ export default function StorePromoCarousel({
             </button>
             <button
               type="button"
-              className={`cf-promo-carousel-arrow cf-promo-carousel-arrow--next${canNext ? '' : ' is-hidden'}`}
+              className="cf-promo-carousel-arrow cf-promo-carousel-arrow--next"
               onClick={() => scrollByCard(1)}
               aria-label="Próximas ofertas"
             >
@@ -159,8 +215,8 @@ export default function StorePromoCarousel({
                 key={p.id}
                 type="button"
                 className="cf-promo-card"
-              onClick={() => handleCard({ p, c })}
-              disabled={(!onCardClick && !onAddCart) || p.estoque === 0}
+                onClick={() => handleCard({ p, c })}
+                disabled={(!onCardClick && !onAddCart) || p.estoque === 0}
                 aria-label={`${p.nome}, ${fmt(c.precoPixFinal)} no PIX`}
                 data-active={i === activeIndex ? 'true' : undefined}
               >

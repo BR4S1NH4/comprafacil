@@ -104,7 +104,15 @@ export default function StoreFooterPromoBar({ anuncioRodape, ofertas = [], onAdd
     if (slides.length <= 1 || paused) return
     const id = setInterval(() => {
       setDirection(1)
-      setIndex((i) => (i + 1) % slides.length)
+      setIndex((i) => {
+        const next = (i + 1) % slides.length
+        // #region agent log
+        if (i >= 7 || next === 0) {
+          fetch('http://127.0.0.1:7368/ingest/3bc56ea2-66ca-41fe-920a-82b7ea995613',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'cdf62d'},body:JSON.stringify({sessionId:'cdf62d',location:'StoreFooterPromoBar.jsx:autoAdvance',message:'footer auto slide',data:{from:i,to:next,slidesLen:slides.length,wraps:i===slides.length-1&&next===0},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        }
+        // #endregion
+        return next
+      })
     }, AUTO_MS)
     return () => clearInterval(id)
   }, [slides.length, paused])
@@ -126,7 +134,13 @@ export default function StoreFooterPromoBar({ anuncioRodape, ofertas = [], onAdd
 
   const go = (dir) => {
     setDirection(dir)
-    setIndex((i) => (i + dir + slides.length) % slides.length)
+    setIndex((i) => {
+      const next = (i + dir + slides.length) % slides.length
+      // #region agent log
+      fetch('http://127.0.0.1:7368/ingest/3bc56ea2-66ca-41fe-920a-82b7ea995613',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'cdf62d'},body:JSON.stringify({sessionId:'cdf62d',location:'StoreFooterPromoBar.jsx:go',message:'footer manual nav',data:{dir,from:i,to:next,slidesLen:slides.length},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return next
+    })
     pauseBriefly()
   }
 
@@ -189,6 +203,9 @@ export default function StoreFooterPromoBar({ anuncioRodape, ofertas = [], onAdd
               className={`cf-footer-bar-dot${i === index ? ' is-active' : ''}`}
               onClick={() => {
                 setDirection(i > index ? 1 : -1)
+                // #region agent log
+                fetch('http://127.0.0.1:7368/ingest/3bc56ea2-66ca-41fe-920a-82b7ea995613',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'cdf62d'},body:JSON.stringify({sessionId:'cdf62d',location:'StoreFooterPromoBar.jsx:dotClick',message:'footer dot click',data:{from:index,to:i,slidesLen:slides.length,slideId:slide.id},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+                // #endregion
                 setIndex(i)
                 pauseBriefly()
               }}
