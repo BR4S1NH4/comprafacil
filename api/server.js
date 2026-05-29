@@ -26,6 +26,11 @@ const DEFAULT_EMPRESA = {
   estoqueMinPadrao: 10,
   alertaEstoque: true,
   confirmarExclusao: true,
+  vitrine: {
+    produtosPorPagina: 12,
+    anuncios: {},
+  },
+  paginaSobre: null,
 }
 
 function normalizeUser(value) {
@@ -41,6 +46,7 @@ function rowToProduto(row) {
     categoria: row.categoria,
     unidade: row.unidade,
     emoji: row.emoji,
+    imagemDataUrl: row.imagem_data_url || null,
     compra: Number(row.compra),
     venda: Number(row.venda),
     tributo: Number(row.tributo),
@@ -49,6 +55,15 @@ function rowToProduto(row) {
     minimo: row.minimo,
     pixDesconto: Number(row.pix_desconto),
   }
+}
+
+function normalizeImagemDataUrl(value) {
+  if (value == null) return null
+  const s = String(value).trim()
+  if (!s) return null
+  if (s.length > 2_500_000) return null
+  if (!s.startsWith('data:image/')) return null
+  return s
 }
 
 function rowToPedido(row) {
@@ -72,7 +87,7 @@ function mergeEmpresa(payload) {
 const sessions = new Map()
 
 app.use(cors())
-app.use(express.json({ limit: '4mb' }))
+app.use(express.json({ limit: '12mb' }))
 
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization || ''
@@ -102,6 +117,8 @@ app.get('/api/branding', async (_req, res) => {
     res.json({
       nomeLoja: merged.nomeLoja,
       logoDataUrl: merged.logoDataUrl,
+      vitrine: merged.vitrine || null,
+      paginaSobre: merged.paginaSobre || null,
     })
   } catch (e) {
     console.error(e)
@@ -138,6 +155,17 @@ app.put('/api/empresa', authenticate, requireAdmin, async (req, res) => {
   }
 })
 
+/** Catálogo público (vitrine antes do login). */
+app.get('/api/catalog/produtos', async (_req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM produtos ORDER BY nome')
+    res.json({ produtos: rows.map(rowToProduto) })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Falha ao listar catalogo.' })
+  }
+})
+
 app.get('/api/produtos', authenticate, async (_req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM produtos ORDER BY nome')
@@ -153,11 +181,12 @@ app.post('/api/produtos', authenticate, requireAdmin, async (req, res) => {
   if (!p?.codigo || !p?.nome) return res.status(400).json({ error: 'Codigo e nome obrigatorios.' })
   const id = p.id && String(p.id).length > 10 ? p.id : crypto.randomUUID()
   try {
+    const imagem = normalizeImagemDataUrl(p.imagemDataUrl)
     await pool.query(
       `INSERT INTO produtos (
-        id, codigo, nome, descricao, categoria, unidade, emoji,
+        id, codigo, nome, descricao, categoria, unidade, emoji, imagem_data_url,
         compra, venda, tributo, operacional, estoque, minimo, pix_desconto
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
       [
         id,
         String(p.codigo).trim().toUpperCase(),
@@ -166,6 +195,7 @@ app.post('/api/produtos', authenticate, requireAdmin, async (req, res) => {
         String(p.categoria || 'Estrutura'),
         String(p.unidade || 'unidade'),
         String(p.emoji || '📦'),
+        imagem,
         Number(p.compra),
         Number(p.venda),
         Number(p.tributo) || 0,
@@ -188,10 +218,11 @@ app.put('/api/produtos/:id', authenticate, requireAdmin, async (req, res) => {
   const id = req.params.id
   const p = req.body
   try {
+    const imagem = normalizeImagemDataUrl(p.imagemDataUrl)
     const { rowCount } = await pool.query(
       `UPDATE produtos SET
-        codigo = $2, nome = $3, descricao = $4, categoria = $5, unidade = $6, emoji = $7,
-        compra = $8, venda = $9, tributo = $10, operacional = $11, estoque = $12, minimo = $13, pix_desconto = $14,
+        codigo = $2, nome = $3, descricao = $4, categoria = $5, unidade = $6, emoji = $7, imagem_data_url = $8,
+        compra = $9, venda = $10, tributo = $11, operacional = $12, estoque = $13, minimo = $14, pix_desconto = $15,
         updated_at = NOW()
       WHERE id = $1::uuid`,
       [
@@ -202,6 +233,7 @@ app.put('/api/produtos/:id', authenticate, requireAdmin, async (req, res) => {
         String(p.categoria || 'Estrutura'),
         String(p.unidade || 'unidade'),
         String(p.emoji || '📦'),
+        imagem,
         Number(p.compra),
         Number(p.venda),
         Number(p.tributo) || 0,
@@ -462,6 +494,33 @@ app.patch('/api/users/:id/password', authenticate, requireAdmin, async (req, res
   ])
   if (!rowCount) return res.status(404).json({ error: 'Usuario nao encontrado.' })
   res.json({ ok: true, message: 'Senha redefinida com sucesso.' })
+})
+
+app.delete('/api/users/:id', authenticate, requireAdmin, async (req, res) => {
+  const id = Number(req.params.id)
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: 'Usuario invalido.' })
+  if (id === req.user.id) {
+    return res.status(400).json({ error: 'Nao e possivel excluir o proprio usuario logado.' })
+  }
+  try {
+    const { rows: alvo } = await pool.query('SELECT usuario, role FROM users WHERE id = $1', [id])
+    const u = alvo[0]
+    if (!u) return res.status(404).json({ error: 'Usuario nao encontrado.' })
+    if (RESERVED_ADMIN_USERS.has(normalizeUser(u.usuario))) {
+      return res.status(403).json({ error: 'Usuario reservado nao pode ser excluido.' })
+    }
+    if (u.role === 'admin') {
+      const { rows: admins } = await pool.query(`SELECT COUNT(*)::int AS n FROM users WHERE role = 'admin'`)
+      if (admins[0]?.n <= 1) {
+        return res.status(409).json({ error: 'Nao e possivel excluir o ultimo administrador.' })
+      }
+    }
+    await pool.query('DELETE FROM users WHERE id = $1', [id])
+    res.json({ ok: true })
+  } catch (e) {
+    console.error(e)
+    res.status(500).json({ error: 'Falha ao excluir usuario.' })
+  }
 })
 
 function upsertAdminUser({ nome, usuario, senha }) {

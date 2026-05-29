@@ -99,6 +99,7 @@ function toProdutoFront(p) {
     estoque: p.estoque,
     minimo: p.minimo,
     pixDesconto: p.pix_desconto,
+    imagemDataUrl: p.imagem_data_url || p.imagemDataUrl || null,
   }
 }
 

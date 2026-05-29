@@ -45,3 +45,11 @@ export async function resetUserPasswordRequest(token, userId, novaSenha) {
   })
   return parseApiResponse(res)
 }
+
+export async function deleteUserRequest(token, userId) {
+  const res = await fetch(apiUrl(`/api/users/${encodeURIComponent(userId)}`), {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return parseApiResponse(res)
+}

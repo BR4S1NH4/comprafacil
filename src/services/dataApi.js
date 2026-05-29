@@ -13,6 +13,13 @@ export async function fetchBranding() {
   return parseApiResponse(res)
 }
 
+/** Catálogo público (sem login) para vitrine. */
+export async function fetchCatalogProdutos() {
+  const res = await fetch(apiUrl('/api/catalog/produtos'))
+  const data = await parseApiResponse(res)
+  return data.produtos || []
+}
+
 export async function fetchProdutos(token) {
   const res = await fetch(apiUrl('/api/produtos'), { headers: authHeaders(token) })
   const data = await parseApiResponse(res)

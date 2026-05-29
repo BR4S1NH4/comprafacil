@@ -3,7 +3,7 @@ import { Lock, User, LogIn, AlertTriangle, UserPlus } from 'lucide-react'
 import { DEFAULT_COMPANY_SETTINGS } from '../utils/companySettings'
 import { BRAND_NAME, resolveLogoUrls } from '../branding'
 
-export default function Login({ onLogin, onRegister, empresa }) {
+export default function Login({ onLogin, onRegister, empresa, embedded }) {
   const e = empresa || DEFAULT_COMPANY_SETTINGS
   const nomeMarca = (e.nomeLoja || BRAND_NAME).trim()
   const { header: loginLogoUrl } = resolveLogoUrls(e)
@@ -72,18 +72,8 @@ export default function Login({ onLogin, onRegister, empresa }) {
     }
   }
 
-  return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg, #7C3AED 0%, #1a0f2e 55%, #0f081c 100%)',
-        padding: 16,
-      }}
-    >
-      <div className="box" style={{ width: '100%', maxWidth: 420, marginBottom: 0 }}>
+  const inner = (
+    <div className="box" style={{ width: '100%', maxWidth: 420, marginBottom: 0 }}>
         <div className="box-header" style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)', color: '#fff' }}>
           <span className="box-title">Acesso ao sistema</span>
         </div>
@@ -243,6 +233,85 @@ export default function Login({ onLogin, onRegister, empresa }) {
           </form>
         </div>
       </div>
+  )
+
+  if (embedded) {
+    return (
+      <>
+        {inner}
+        {adminOpen && (
+        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setAdminOpen(false)}>
+          <div className="modal" style={{ maxWidth: 440 }}>
+            <div className="modal-header">
+              <h4>Acesso administrativo</h4>
+              <button className="modal-close-btn" onClick={() => setAdminOpen(false)}>x</button>
+            </div>
+            <div className="modal-body">
+              {adminErro && (
+                <div className="alert alert-danger">
+                  <AlertTriangle size={15} />
+                  <span>{adminErro}</span>
+                </div>
+              )}
+              <form onSubmit={handleAdminLogin}>
+                <div className="form-group">
+                  <label>Usuario administrativo</label>
+                  <div className="input-group">
+                    <span className="input-addon input-addon-left"><User size={13} /></span>
+                    <input
+                      data-testid="admin-usuario"
+                      value={adminUsuario}
+                      onChange={e => {
+                        setAdminUsuario(e.target.value)
+                        setAdminErro('')
+                      }}
+                      placeholder="Digite o usuario admin"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Senha</label>
+                  <div className="input-group">
+                    <span className="input-addon input-addon-left"><Lock size={13} /></span>
+                    <input
+                      data-testid="admin-senha"
+                      type="password"
+                      value={adminSenha}
+                      onChange={e => {
+                        setAdminSenha(e.target.value)
+                        setAdminErro('')
+                      }}
+                      placeholder="Digite a senha do admin"
+                      required
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <button data-testid="admin-submit" type="submit" className="btn btn-warning btn-block" disabled={adminLoading}>
+                  <LogIn size={14} /> {adminLoading ? 'Entrando...' : 'Entrar como administrador'}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+      </>
+    )
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #7C3AED 0%, #1a0f2e 55%, #0f081c 100%)',
+        padding: 16,
+      }}
+    >
+      {inner}
 
       {adminOpen && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setAdminOpen(false)}>

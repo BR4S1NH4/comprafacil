@@ -1,4 +1,6 @@
 import { BRAND_NAME } from '../branding'
+import { DEFAULT_VITRINE } from './vitrineSettings'
+import { DEFAULT_ABOUT_PAGE } from './aboutPageSettings'
 
 const STORAGE_KEY = 'cf_company_settings_v1'
 
@@ -12,6 +14,8 @@ export const DEFAULT_COMPANY_SETTINGS = {
   cidade: '',
   estado: 'AM',
   logoDataUrl: null,
+  vitrine: DEFAULT_VITRINE,
+  paginaSobre: DEFAULT_ABOUT_PAGE,
   pixPadrao: 10,
   tributosPadrao: 8,
   operacionalPadrao: 7,

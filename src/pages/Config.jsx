@@ -1,8 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { PageHeader, Box } from '../components/Layout'
-import { Save, AlertTriangle, CheckCircle, Store, Tag, Shield, Users, RefreshCw, KeyRound, ImageIcon, Trash2 } from 'lucide-react'
+import { Save, AlertTriangle, CheckCircle, Store, Tag, Shield, Users, RefreshCw, KeyRound, ImageIcon, Trash2, Megaphone, Pencil, Building2 } from 'lucide-react'
 import LogoCropModal from '../components/LogoCropModal'
+import VitrineAdsConfig from '../components/VitrineAdsConfig'
+import AboutPageConfig from '../components/AboutPageConfig'
 import { DEFAULT_COMPANY_SETTINGS, MAX_LOGO_BYTES, MAX_LOGO_INPUT_BYTES } from '../utils/companySettings'
+import { mergeVitrine, DEFAULT_VITRINE } from '../utils/vitrineSettings'
+import { mergeAboutPage } from '../utils/aboutPageSettings'
 import { BRAND_NAME, DEFAULT_LOGO_URL } from '../branding'
 
 export default function Config({
@@ -14,6 +18,7 @@ export default function Config({
   usersError,
   onRefreshUsers,
   onResetUserPassword,
+  onDeleteUser,
 }) {
   const [saved, setSaved] = useState(false)
   const [aba, setAba] = useState(initialTab)
@@ -21,6 +26,7 @@ export default function Config({
   const [credMsg, setCredMsg] = useState('')
   const [credErr, setCredErr] = useState('')
   const [credLoadingId, setCredLoadingId] = useState(null)
+  const [deleteLoadingId, setDeleteLoadingId] = useState(null)
   const [form, setForm] = useState(() => ({ ...(empresa || DEFAULT_COMPANY_SETTINGS) }))
   const [logoCropSrc, setLogoCropSrc] = useState(null)
   const logoCropSrcRef = useRef(null)
@@ -32,29 +38,45 @@ export default function Config({
 
   useEffect(() => () => {
     const u = logoCropSrcRef.current
-    if (u) URL.revokeObjectURL(u)
+    if (u?.startsWith('blob:')) URL.revokeObjectURL(u)
   }, [])
 
   useEffect(() => {
-    setForm({ ...(empresa || DEFAULT_COMPANY_SETTINGS) })
+    const base = empresa || DEFAULT_COMPANY_SETTINGS
+    setForm({
+      ...base,
+      vitrine: mergeVitrine(base.vitrine),
+      paginaSobre: mergeAboutPage(base.paginaSobre),
+    })
   }, [empresa])
 
   const save = () => {
-    onSaveEmpresa({ ...form })
+    onSaveEmpresa({
+      ...form,
+      vitrine: mergeVitrine(form.vitrine),
+      paginaSobre: mergeAboutPage(form.paginaSobre),
+    })
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
   const cancelar = () => {
     closeLogoCrop()
-    setForm({ ...(empresa || DEFAULT_COMPANY_SETTINGS) })
+    const base = empresa || DEFAULT_COMPANY_SETTINGS
+    setForm({
+      ...base,
+      vitrine: mergeVitrine(base.vitrine),
+      paginaSobre: mergeAboutPage(base.paginaSobre),
+    })
+  }
+
+  const revokeCropSrc = (src) => {
+    if (src?.startsWith('blob:')) URL.revokeObjectURL(src)
   }
 
   const closeLogoCrop = () => {
-    if (logoCropSrc) {
-      URL.revokeObjectURL(logoCropSrc)
-      setLogoCropSrc(null)
-    }
+    if (logoCropSrc) revokeCropSrc(logoCropSrc)
+    setLogoCropSrc(null)
   }
 
   const onLogoFile = (e) => {
@@ -72,8 +94,16 @@ export default function Config({
       return
     }
     setLogoCropSrc((prev) => {
-      if (prev) URL.revokeObjectURL(prev)
+      revokeCropSrc(prev)
       return URL.createObjectURL(file)
+    })
+  }
+
+  const editarLogo = () => {
+    if (!form.logoDataUrl) return
+    setLogoCropSrc((prev) => {
+      revokeCropSrc(prev)
+      return form.logoDataUrl
     })
   }
 
@@ -111,6 +141,24 @@ export default function Config({
     }
   }
 
+  const excluirConta = async (u) => {
+    if (!onDeleteUser) return
+    if (!window.confirm(`Excluir permanentemente o usuario "${u.usuario}"? Esta acao nao pode ser desfeita.`)) return
+    try {
+      setDeleteLoadingId(u.id)
+      setCredErr('')
+      setCredMsg('')
+      await onDeleteUser(u.id)
+      setCredMsg(`Usuario "${u.usuario}" excluido.`)
+      onRefreshUsers()
+    } catch (error) {
+      setCredErr(error.message || 'Falha ao excluir usuario.')
+      setCredMsg('')
+    } finally {
+      setDeleteLoadingId(null)
+    }
+  }
+
   return (
     <>
       <PageHeader title="Configurações" sub="Parâmetros do sistema" breadcrumbs={['Configurações']}/>
@@ -122,7 +170,30 @@ export default function Config({
           <button className={`btn btn-sm ${aba==='credenciais'?'btn-warning':'btn-default'}`} onClick={()=>setAba('credenciais')}>
             Credenciais de usuários
           </button>
+          <button className={`btn btn-sm ${aba==='vitrine'?'btn-info':'btn-default'}`} onClick={()=>setAba('vitrine')}>
+            <Megaphone size={12} style={{ marginRight: 4, verticalAlign: 'middle' }}/>
+            Anúncios da vitrine
+          </button>
+          <button className={`btn btn-sm ${aba==='sobre'?'btn-success':'btn-default'}`} onClick={()=>setAba('sobre')}>
+            <Building2 size={12} style={{ marginRight: 4, verticalAlign: 'middle' }}/>
+            Página Sobre
+          </button>
         </div>
+
+        {aba === 'sobre' && (
+          <AboutPageConfig
+            paginaSobre={form.paginaSobre}
+            logoEmpresa={form.logoDataUrl}
+            onChange={(p) => set('paginaSobre', p)}
+          />
+        )}
+
+        {aba === 'vitrine' && (
+          <VitrineAdsConfig
+            vitrine={form.vitrine || DEFAULT_VITRINE}
+            onChange={(v) => set('vitrine', v)}
+          />
+        )}
 
         {aba === 'credenciais' && (
           <Box
@@ -151,6 +222,7 @@ export default function Config({
                     <th>Senha atual</th>
                     <th>Nova senha</th>
                     <th>Ação</th>
+                    {onDeleteUser && <th>Conta</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -176,11 +248,24 @@ export default function Config({
                         <button
                           className="btn btn-warning btn-sm"
                           onClick={() => redefinirSenha(u.id)}
-                          disabled={credLoadingId === u.id}
+                          disabled={credLoadingId === u.id || deleteLoadingId === u.id}
                         >
                           {credLoadingId === u.id ? 'Salvando...' : 'Redefinir senha'}
                         </button>
                       </td>
+                      {onDeleteUser && (
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => excluirConta(u)}
+                            disabled={deleteLoadingId === u.id || credLoadingId === u.id}
+                            title="Excluir usuario do sistema"
+                          >
+                            {deleteLoadingId === u.id ? '...' : <><Trash2 size={12}/> Excluir</>}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -211,7 +296,18 @@ export default function Config({
                     }}
                   >
                     {form.logoDataUrl ? (
-                      <img src={form.logoDataUrl} alt="Logotipo" decoding="async" loading="lazy" style={{ maxWidth: '100%', maxHeight: 64, objectFit: 'contain' }} />
+                      <img
+                        src={form.logoDataUrl}
+                        alt="Logotipo"
+                        decoding="async"
+                        loading="lazy"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: 64,
+                          objectFit: 'contain',
+                          borderRadius: form.logoDataUrl.startsWith('data:image/png') ? '50%' : undefined,
+                        }}
+                      />
                     ) : (
                       <div className="d-flex flex-col items-center gap-1" style={{ padding: 8 }}>
                         <img src={DEFAULT_LOGO_URL} alt="" decoding="async" loading="lazy" style={{ maxWidth: '100%', maxHeight: 56, objectFit: 'contain' }} />
@@ -226,14 +322,20 @@ export default function Config({
                       <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onLogoFile} aria-label="Selecionar logotipo" />
                     </label>
                     {form.logoDataUrl && (
-                      <button type="button" className="btn btn-danger btn-sm" onClick={removerLogo}>
-                        <Trash2 size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
-                        Remover logo
-                      </button>
+                      <>
+                        <button type="button" className="btn btn-info btn-sm" onClick={editarLogo}>
+                          <Pencil size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                          Editar imagem
+                        </button>
+                        <button type="button" className="btn btn-danger btn-sm" onClick={removerLogo}>
+                          <Trash2 size={14} style={{ marginRight: 4, verticalAlign: 'middle' }} />
+                          Remover logo
+                        </button>
+                      </>
                     )}
                     <span className="text-xs text-muted">
-                      Envie a imagem e use o recorte para ajustar. Arquivo até {Math.round(MAX_LOGO_INPUT_BYTES / (1024 * 1024))} MB;
-                      após cortar, o logo fica limitado a ~{Math.round(MAX_LOGO_BYTES / 1024)} KB.
+                      Envie ou use <strong>Editar imagem</strong> para recortar de novo (opção <strong>Circular</strong> para avatar/ícone com fundo transparente).
+                      Arquivo até {Math.round(MAX_LOGO_INPUT_BYTES / (1024 * 1024))} MB; após cortar, ~{Math.round(MAX_LOGO_BYTES / 1024)} KB.
                     </span>
                   </div>
                 </div>
@@ -455,8 +557,10 @@ export default function Config({
 
         {logoCropSrc && (
           <LogoCropModal
-            key={logoCropSrc}
+            key={logoCropSrc.slice(0, 80)}
             imageSrc={logoCropSrc}
+            title="Recortar logotipo"
+            defaultAspectId="circle"
             onClose={closeLogoCrop}
             onApply={onLogoCropApply}
           />
@@ -471,6 +575,15 @@ export default function Config({
         {aba === 'geral' && (
           <div className="d-flex gap-3">
             <button className="btn btn-primary btn-lg" onClick={save}><Save size={14}/> Salvar configurações</button>
+            <button type="button" className="btn btn-default btn-lg" onClick={cancelar}>Cancelar</button>
+          </div>
+        )}
+
+        {(aba === 'vitrine' || aba === 'sobre') && (
+          <div className="d-flex gap-3 mt-3">
+            <button className="btn btn-primary btn-lg" onClick={save}>
+              <Save size={14}/> {aba === 'sobre' ? 'Salvar página Sobre' : 'Salvar anúncios e paginação'}
+            </button>
             <button type="button" className="btn btn-default btn-lg" onClick={cancelar}>Cancelar</button>
           </div>
         )}

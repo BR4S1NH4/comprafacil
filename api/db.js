@@ -99,6 +99,7 @@ const MIGRATIONS = [
     id INTEGER PRIMARY KEY CHECK (id = 1),
     payload JSONB NOT NULL DEFAULT '{}'::jsonb
   )`,
+  `ALTER TABLE produtos ADD COLUMN IF NOT EXISTS imagem_data_url TEXT`,
 ]
 
 export async function migrate() {

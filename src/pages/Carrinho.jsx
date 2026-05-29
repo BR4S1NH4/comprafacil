@@ -3,7 +3,17 @@ import { calcProduto, fmt } from '../data'
 import { PageHeader, Box } from '../components/Layout'
 import { Trash2, CreditCard, Zap, CheckCircle, ShoppingCart, Plus, Minus, ArrowLeft } from 'lucide-react'
 
-export default function Carrinho({ cart, onQty, onRemove, onClear, onCheckout, onViewOrders, onNav }) {
+export default function Carrinho({
+  cart,
+  onQty,
+  onRemove,
+  onClear,
+  onCheckout,
+  onViewOrders,
+  onNav,
+  guestMode,
+  onRequestLogin,
+}) {
   const [payMode, setPayMode]     = useState('pix')
   const [finalizado, setFinalizado] = useState(false)
   const [pedidoId, setPedidoId]    = useState(null)
@@ -43,13 +53,15 @@ export default function Carrinho({ cart, onQty, onRemove, onClear, onCheckout, o
                 <CheckCircle size={16}/>
                 <span>Pedido registrado com sucesso. O estoque foi atualizado automaticamente.</span>
               </div>
-              <div className="d-flex gap-3 justify-center">
+              <div className="d-flex gap-3 justify-center flex-wrap">
                 <button className="btn btn-primary btn-lg" onClick={()=>{setFinalizado(false);onClear();onNav('loja')}}>
                   <ShoppingCart size={16}/> Continuar comprando
                 </button>
-                <button className="btn btn-default btn-lg" onClick={onViewOrders}>
-                  Ver meus pedidos
-                </button>
+                {!guestMode && (
+                  <button className="btn btn-default btn-lg" onClick={onViewOrders}>
+                    Ver meus pedidos
+                  </button>
+                )}
               </div>
             </div>
           </Box>
@@ -112,7 +124,11 @@ export default function Carrinho({ cart, onQty, onRemove, onClear, onCheckout, o
                       <tr key={produto.id}>
                         <td>
                           <div className="d-flex items-center gap-2">
-                            <span style={{fontSize:24}}>{produto.emoji}</span>
+                            {produto.imagemDataUrl ? (
+                              <img src={produto.imagemDataUrl} alt="" width={44} height={44} style={{ objectFit: 'cover', borderRadius: 8 }} />
+                            ) : (
+                              <span style={{fontSize:24}}>{produto.emoji}</span>
+                            )}
                             <div>
                               <div style={{fontWeight:600}}>{produto.nome}</div>
                               <div className="text-xs text-muted">{produto.unidade}</div>
@@ -222,6 +238,10 @@ export default function Carrinho({ cart, onQty, onRemove, onClear, onCheckout, o
                 className="btn btn-success btn-lg btn-block mt-3"
                 disabled={checkoutLoading || cart.length === 0}
                 onClick={async () => {
+                  if (guestMode && typeof onRequestLogin === 'function') {
+                    onRequestLogin()
+                    return
+                  }
                   try {
                     setCheckoutLoading(true)
                     const novo = await onCheckout(payMode)
@@ -239,7 +259,8 @@ export default function Carrinho({ cart, onQty, onRemove, onClear, onCheckout, o
                   }
                 }}
               >
-                <CheckCircle size={15}/> {checkoutLoading ? 'Processando…' : 'Finalizar pedido'}
+                <CheckCircle size={15}/>{' '}
+                {guestMode ? 'Entrar para finalizar' : checkoutLoading ? 'Processando…' : 'Finalizar pedido'}
               </button>
             </Box>
 

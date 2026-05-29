@@ -1,10 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   LayoutDashboard, ShoppingBag, ShoppingCart, Package,
   ClipboardList, BarChart3, Settings, LogOut, KeyRound,
-  Bell, Menu, ChevronRight, AlertTriangle, X
+  Bell, Menu, ChevronRight, AlertTriangle, X, Building2, LogIn,
 } from 'lucide-react'
 import { BRAND_NAME, resolveLogoUrls } from '../branding'
+import StoreHeaderSearch from './StoreHeaderSearch'
 
 const ADMIN_NAV = [
   { id:'dashboard', label:'Dashboard',     icon:LayoutDashboard },
@@ -15,8 +16,9 @@ const ADMIN_NAV = [
 ]
 
 const SALES_NAV = [
-  { id:'loja',      label:'Balcão de Vendas', icon:ShoppingBag },
-  { id:'carrinho',  label:'Carrinho',         icon:ShoppingCart },
+  { id:'loja',      label:'Loja',            icon:ShoppingBag },
+  { id:'carrinho',  label:'Carrinho',        icon:ShoppingCart },
+  { id:'sobre', label:'Sobre esta empresa', icon:Building2 },
 ]
 
 export default function Layout({
@@ -31,20 +33,65 @@ export default function Layout({
   alertCount,
   empresa,
   children,
+  storefrontMode = false,
+  guestMode = false,
+  onOpenLogin,
+  storeSearch = null,
 }) {
-  const [collapsed, setCollapsed] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches
   )
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return Boolean(storefrontMode)
+    if (storefrontMode) return true
+    return window.matchMedia('(max-width: 768px)').matches
+  })
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 768px)')
+    const fn = () => setIsNarrow(mq.matches)
+    fn()
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  }, [])
+
+  useEffect(() => {
+    if (storefrontMode) setCollapsed(true)
+  }, [storefrontMode])
+
   const isAdmin = area === 'admin'
   const navItems = isAdmin ? ADMIN_NAV : SALES_NAV
   const nomeLoja = empresa?.nomeLoja?.trim() || BRAND_NAME
   const { header: headerLogoUrl, avatar: avatarLogoUrl } = resolveLogoUrls(empresa)
 
+  const overlayDrawer = storefrontMode || isNarrow
+  const showScrim = overlayDrawer && !collapsed
+
+  const handleNavItem = (item) => {
+    onNav(item.id)
+    if (overlayDrawer) setCollapsed(true)
+  }
+
+  const toggleMenu = () => setCollapsed((c) => !c)
+
+  const headerClass = `cf-header${storefrontMode ? ' cf-header--store' : ''}`
+
   return (
-    <div className="cf-wrap">
-      {/* ── Header ─────────────────────────────── */}
-      <header className="cf-header">
-        <a className="cf-logo" title={nomeLoja}>
+    <div className={`cf-wrap${storefrontMode ? ' cf-storefront' : ''}`}>
+      <header className={headerClass}>
+        <button type="button" className="cf-hbtn" onClick={toggleMenu} title="Menu">
+          <Menu size={18}/>
+        </button>
+        <a
+          className="cf-logo"
+          title={nomeLoja}
+          href="#"
+          onClick={(e) => {
+            e.preventDefault()
+            if (isAdmin) onNav('dashboard')
+            else onNav('loja')
+          }}
+        >
           <img
             className="cf-logo-img"
             src={headerLogoUrl}
@@ -55,11 +102,22 @@ export default function Layout({
             height={44}
           />
         </a>
-        <nav className="cf-header-nav">
-          <button className="cf-hbtn" onClick={() => setCollapsed(c => !c)} title="Alternar menu">
-            <Menu size={18}/>
-          </button>
-        </nav>
+        {!storefrontMode && (
+          <nav className="cf-header-nav" aria-hidden />
+        )}
+        {storefrontMode && storeSearch && (
+          <StoreHeaderSearch
+            value={storeSearch.value}
+            onChange={storeSearch.onChange}
+            produtos={storeSearch.produtos}
+            onNavigateLoja={storeSearch.onNavigateLoja}
+          />
+        )}
+        {storefrontMode && !storeSearch && (
+          <div className="cf-header-tagline text-muted text-sm">
+            Materiais para obra · PIX com desconto
+          </div>
+        )}
         <div className="cf-header-right">
           {isAdmin && alertCount > 0 && (
             <button className="cf-hbtn" onClick={() => onNav('dashboard')} title="Alertas de estoque">
@@ -67,10 +125,22 @@ export default function Layout({
               <span className="cf-hbtn-badge yellow">{alertCount}</span>
             </button>
           )}
-          {!isAdmin && <button className="cf-hbtn" onClick={() => onNav('carrinho')} title="Carrinho">
-            <ShoppingCart size={16}/>
-            {cartCount > 0 && <span className="cf-hbtn-badge">{cartCount}</span>}
-          </button>}
+          {!isAdmin && (
+            <button className="cf-hbtn" onClick={() => onNav('carrinho')} title="Carrinho">
+              <ShoppingCart size={16}/>
+              {cartCount > 0 && <span className="cf-hbtn-badge">{cartCount}</span>}
+            </button>
+          )}
+          {guestMode && typeof onOpenLogin === 'function' && (
+            <button
+              type="button"
+              data-testid="guest-open-login"
+              className="btn btn-sm btn-default cf-header-login-btn"
+              onClick={() => onOpenLogin()}
+            >
+              <LogIn size={14}/> Entrar
+            </button>
+          )}
           {canSwitchArea && (
             <button
               className={`btn btn-sm ${isAdmin ? 'btn-warning' : 'btn-info'}`}
@@ -80,27 +150,39 @@ export default function Layout({
               {isAdmin ? 'Ir para Vendas' : 'Ir para Admin'}
             </button>
           )}
-          <button
-            className="btn btn-sm btn-danger"
-            onClick={onLogout}
-            title="Deslogar usuário"
-          >
-            <LogOut size={13}/> Deslogar
-          </button>
-          <button className="cf-hbtn" title="Notificações">
-            <Bell size={16}/>
-          </button>
-          <button className="cf-user-btn">
-            <div className="cf-avatar">A</div>
-            <span>{userName || (isAdmin ? 'Admin' : 'Vendedor')}</span>
-          </button>
+          {!guestMode && (
+            <button
+              className="btn btn-sm btn-danger"
+              onClick={onLogout}
+              title="Deslogar usuário"
+            >
+              <LogOut size={13}/> Deslogar
+            </button>
+          )}
+          {!guestMode && (
+            <button className="cf-hbtn" title="Notificações">
+              <Bell size={16}/>
+            </button>
+          )}
+          {!guestMode && (
+            <button type="button" className="cf-user-btn">
+              <div className="cf-avatar">{(userName || 'U').slice(0, 1).toUpperCase()}</div>
+              <span className="cf-user-btn-label">{userName || (isAdmin ? 'Admin' : 'Vendedor')}</span>
+            </button>
+          )}
         </div>
       </header>
 
-      <div className="cf-body">
-        {/* ── Sidebar ──────────────────────────── */}
-        <aside className={`cf-sidebar${collapsed ? ' collapsed' : ''}`}>
-          {/* User panel */}
+      <div className={`cf-body${overlayDrawer ? ' cf-body--drawer' : ''}`}>
+        {showScrim && (
+          <button
+            type="button"
+            className="cf-sidebar-scrim"
+            aria-label="Fechar menu"
+            onClick={() => setCollapsed(true)}
+          />
+        )}
+        <aside className={`cf-sidebar${collapsed ? ' collapsed' : ''}${overlayDrawer ? ' cf-sidebar--overlay' : ''}`}>
           <div className="cf-user-panel">
             <div className="cf-up-avatar">
               <img
@@ -111,10 +193,15 @@ export default function Layout({
                 loading="lazy"
                 width={44}
                 height={44}
+                style={
+                  empresa?.logoDataUrl?.trim().startsWith('data:image/png')
+                    ? { borderRadius: '50%', objectFit: 'cover' }
+                    : undefined
+                }
               />
             </div>
             <div>
-              <div className="cf-up-name">{isAdmin ? 'Administrador' : 'Operador de Vendas'}</div>
+              <div className="cf-up-name">{guestMode ? 'Visitante' : isAdmin ? 'Administrador' : 'Operador de Vendas'}</div>
               <div className="cf-up-company" title={nomeLoja}>{nomeLoja}</div>
               <div className="cf-up-status">
                 <span className="cf-online-dot"/>Online
@@ -122,18 +209,20 @@ export default function Layout({
             </div>
           </div>
 
-          <div className="cf-nav-head">{isAdmin ? 'Área Administrativa' : 'Área de Vendas'}</div>
+          <div className="cf-nav-head">{isAdmin ? 'Área Administrativa' : 'Menu'}</div>
 
-          {navItems.map(item => {
+          {navItems.map((item) => {
             const Icon = item.icon
             const badge = item.id === 'carrinho' ? cartCount
               : item.id === 'dashboard' && alertCount > 0 ? alertCount
               : 0
+            const isActive = active === item.id
             return (
               <button
                 key={item.id}
-                className={`cf-nav-item${active === item.id ? ' active' : ''}`}
-                onClick={() => onNav(item.id)}
+                type="button"
+                className={`cf-nav-item${isActive ? ' active' : ''}`}
+                onClick={() => handleNavItem(item)}
               >
                 <Icon size={15}/>
                 {item.label}
@@ -150,19 +239,28 @@ export default function Layout({
           <div className="cf-nav-divider"/>
           <div className="cf-nav-head">Sistema</div>
 
-          {isAdmin && <button className="cf-nav-item" onClick={() => onNav('config')}>
-            <Settings size={15}/>Configurações
-          </button>}
-          <button className="cf-nav-item" onClick={onLogout}>
-            <LogOut size={15}/>Sair
-          </button>
+          {isAdmin && (
+            <button type="button" className="cf-nav-item" onClick={() => { onNav('config'); if (overlayDrawer) setCollapsed(true) }}>
+              <Settings size={15}/>Configurações
+            </button>
+          )}
+          {!guestMode && (
+            <button type="button" className="cf-nav-item" onClick={onLogout}>
+              <LogOut size={15}/>Sair
+            </button>
+          )}
+          {guestMode && typeof onOpenLogin === 'function' && (
+            <button type="button" className="cf-nav-item" onClick={() => { onOpenLogin(); setCollapsed(true) }}>
+              <LogIn size={15}/>Entrar na conta
+            </button>
+          )}
         </aside>
 
-        {/* ── Content ──────────────────────────── */}
         <main className="cf-content">
           {children}
         </main>
       </div>
+
     </div>
   )
 }
@@ -250,7 +348,7 @@ export function Modal({ title, onClose, children, footer, size }) {
       >
         <div className="modal-header">
           <h4>{title}</h4>
-          <button className="modal-close-btn" onClick={onClose}><X size={18}/></button>
+          <button type="button" className="modal-close-btn" onClick={onClose}><X size={18}/></button>
         </div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-footer">{footer}</div>}

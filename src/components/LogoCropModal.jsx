@@ -1,27 +1,37 @@
 import React, { useState, useCallback } from 'react'
 import Cropper from 'react-easy-crop'
 import 'react-easy-crop/react-easy-crop.css'
-import { Crop, ZoomIn, X } from 'lucide-react'
+import { Crop, ZoomIn, X, Circle } from 'lucide-react'
 import { Modal } from './Layout'
 import { finalizeLogoDataUrl } from '../utils/cropImage'
 import { MAX_LOGO_BYTES } from '../utils/companySettings'
 
 const ASPECT_OPTIONS = [
-  { id: 'free', label: 'Livre', value: undefined },
-  { id: '1', label: '1:1', value: 1 },
-  { id: '16/9', label: '16:9', value: 16 / 9 },
-  { id: '3/1', label: '3:1', value: 3 },
+  { id: 'circle', label: 'Circular', value: 1, round: true },
+  { id: 'free', label: 'Livre', value: undefined, round: false },
+  { id: '1', label: '1:1', value: 1, round: false },
+  { id: '16/9', label: '16:9', value: 16 / 9, round: false },
+  { id: '3/1', label: '3:1', value: 3, round: false },
 ]
 
-export default function LogoCropModal({ imageSrc, onClose, onApply }) {
+export default function LogoCropModal({
+  imageSrc,
+  onClose,
+  onApply,
+  title = 'Recortar imagem',
+  maxBytes = MAX_LOGO_BYTES,
+  defaultAspectId = 'circle',
+}) {
   const [crop, setCrop] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
-  const [aspectId, setAspectId] = useState('free')
+  const [aspectId, setAspectId] = useState(defaultAspectId)
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
 
-  const aspect = ASPECT_OPTIONS.find((o) => o.id === aspectId)?.value
+  const aspectOpt = ASPECT_OPTIONS.find((o) => o.id === aspectId) || ASPECT_OPTIONS[0]
+  const aspect = aspectOpt.value
+  const cropShape = aspectOpt.round ? 'round' : 'rect'
 
   const onCropComplete = useCallback((_area, areaPixels) => {
     setCroppedAreaPixels(areaPixels)
@@ -35,7 +45,9 @@ export default function LogoCropModal({ imageSrc, onClose, onApply }) {
     setErr('')
     setBusy(true)
     try {
-      const dataUrl = await finalizeLogoDataUrl(imageSrc, croppedAreaPixels, MAX_LOGO_BYTES)
+      const dataUrl = await finalizeLogoDataUrl(imageSrc, croppedAreaPixels, maxBytes, {
+        circular: aspectOpt.round,
+      })
       onApply(dataUrl)
     } catch (e) {
       setErr(e.message || 'Falha ao gerar a imagem.')
@@ -51,14 +63,18 @@ export default function LogoCropModal({ imageSrc, onClose, onApply }) {
       title={
         <span className="d-flex items-center gap-2">
           <Crop size={18} />
-          Recortar logotipo
+          {title}
         </span>
       }
       onClose={onClose}
       size="xl"
       footer={
         <div className="d-flex items-center justify-between flex-wrap gap-2" style={{ width: '100%' }}>
-          <span className="text-xs text-muted">Arraste para posicionar. Use o zoom para enquadrar.</span>
+          <span className="text-xs text-muted">
+            {aspectOpt.round
+              ? 'Formato circular — ideal para avatar e ícone. Fundo transparente fora do círculo.'
+              : 'Arraste para posicionar. Use o zoom para enquadrar.'}
+          </span>
           <div className="d-flex gap-2">
             <button type="button" className="btn btn-default" onClick={onClose} disabled={busy}>
               Cancelar
@@ -72,7 +88,7 @@ export default function LogoCropModal({ imageSrc, onClose, onApply }) {
     >
       <div className="mb-3">
         <div className="text-xs text-muted mb-2" style={{ fontWeight: 600 }}>
-          Proporção do recorte
+          Formato do recorte
         </div>
         <div className="btn-group flex-wrap">
           {ASPECT_OPTIONS.map((opt) => (
@@ -86,6 +102,7 @@ export default function LogoCropModal({ imageSrc, onClose, onApply }) {
                 setZoom(1)
               }}
             >
+              {opt.round ? <Circle size={12} style={{ marginRight: 4, verticalAlign: 'middle' }} /> : null}
               {opt.label}
             </button>
           ))}
@@ -98,7 +115,9 @@ export default function LogoCropModal({ imageSrc, onClose, onApply }) {
           position: 'relative',
           width: '100%',
           height: 360,
-          background: '#2a2627',
+          background: aspectOpt.round
+            ? 'repeating-conic-gradient(#3a3a3a 0% 25%, #2a2627 0% 50%) 50% / 16px 16px'
+            : '#2a2627',
         }}
       >
         <Cropper
@@ -106,10 +125,11 @@ export default function LogoCropModal({ imageSrc, onClose, onApply }) {
           crop={crop}
           zoom={zoom}
           aspect={aspect}
+          cropShape={cropShape}
           onCropChange={setCrop}
           onZoomChange={setZoom}
           onCropComplete={onCropComplete}
-          showGrid
+          showGrid={!aspectOpt.round}
         />
       </div>
 

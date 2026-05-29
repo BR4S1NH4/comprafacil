@@ -1,7 +1,8 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { calcProduto, stockStatus, fmt, CATEGORIAS, UNIDADES, EMOJIS } from '../data'
 import { PageHeader, Box, Modal } from '../components/Layout'
-import { Plus, Edit2, Trash2, Save, CheckCircle, AlertTriangle, Package, Search } from 'lucide-react'
+import AdminProductsPromos from '../components/AdminProductsPromos'
+import { Plus, Edit2, Trash2, Save, CheckCircle, AlertTriangle, Package, Search, ImageIcon, XCircle, Megaphone } from 'lucide-react'
 
 const EMPTY = {
   codigo: '',
@@ -17,6 +18,7 @@ const EMPTY = {
   estoque: '',
   minimo: '',
   pixDesconto: 10,
+  imagemDataUrl: null,
 }
 
 function normalizeCode(value) {
@@ -41,6 +43,7 @@ function ProdutoModal({ produto, produtos, onSave, onClose }) {
       ...produto,
       codigo: produto.codigo || `MAT-${String(produto.id).padStart(4, '0')}`,
       descricao: produto.descricao || '',
+      imagemDataUrl: produto.imagemDataUrl || null,
     }
   })
   const [errors, setErrs] = useState({})
@@ -87,6 +90,7 @@ function ProdutoModal({ produto, produtos, onSave, onClose }) {
       tributo:+form.tributo, operacional:+form.operacional,
       estoque:+form.estoque, minimo:+form.minimo,
       pixDesconto:+form.pixDesconto,
+      imagemDataUrl: form.imagemDataUrl || null,
     })
     onClose()
   }
@@ -118,6 +122,55 @@ function ProdutoModal({ produto, produtos, onSave, onClose }) {
                 }}>{e}</button>
               ))}
             </div>
+          </FormField>
+
+          <FormField label="Foto do produto (opcional)" hint="PNG ou JPG até ~1 MB. Aparece na loja no lugar do ícone.">
+            <div className="d-flex flex-wrap gap-2 items-center">
+              <label className="btn btn-default btn-sm mb-0" style={{ cursor: 'pointer' }}>
+                <ImageIcon size={14}/> Carregar imagem
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="d-none"
+                  onChange={(ev) => {
+                    const file = ev.target.files?.[0]
+                    ev.target.value = ''
+                    if (!file) return
+                    if (!file.type.startsWith('image/')) {
+                      window.alert('Selecione um arquivo de imagem.')
+                      return
+                    }
+                    if (file.size > 1_000_000) {
+                      window.alert('Imagem muito grande. Use até ~1 MB.')
+                      return
+                    }
+                    const r = new FileReader()
+                    r.onload = () => {
+                      const url = String(r.result || '')
+                      if (url.length > 1_400_000) {
+                        window.alert('Imagem resultante muito grande. Tente outra foto.')
+                        return
+                      }
+                      set('imagemDataUrl', url)
+                    }
+                    r.onerror = () => {
+                      window.alert('Nao foi possivel ler a imagem.')
+                    }
+                    r.readAsDataURL(file)
+                  }}
+                />
+              </label>
+              {form.imagemDataUrl && (
+                <button type="button" className="btn btn-default btn-sm" onClick={() => set('imagemDataUrl', null)}>
+                  <XCircle size={14}/> Remover foto
+                </button>
+              )}
+            </div>
+            {form.imagemDataUrl && (
+              <div className="mt-2">
+                <img src={form.imagemDataUrl} alt="" style={{ maxWidth: 200, maxHeight: 200, borderRadius: 8, border: '1px solid var(--border)' }} />
+              </div>
+            )}
           </FormField>
 
           {/* Codigo */}
@@ -271,6 +324,25 @@ export default function Produtos({ produtos, onSave, onDelete }) {
   const [busca, setBusca]   = useState('')
   const [filtro, setFiltro] = useState('todos')
   const [delConf, setDelConf] = useState(null)
+  const [highlightId, setHighlightId] = useState(null)
+  const [promoBanner, setPromoBanner] = useState('')
+  const tableRef = useRef(null)
+
+  const applyPromoFilter = ({ busca: b, filtro: f, highlightId: hid, highlightLabel }) => {
+    setBusca(b ?? '')
+    setFiltro(f ?? 'todos')
+    setHighlightId(hid || null)
+    setPromoBanner(highlightLabel || '')
+    requestAnimationFrame(() => {
+      tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
+  useEffect(() => {
+    if (!highlightId) return
+    const t = setTimeout(() => setHighlightId(null), 4000)
+    return () => clearTimeout(t)
+  }, [highlightId])
 
   const filtrados = produtos.filter(p => {
     const termo = busca.toLowerCase()
@@ -305,6 +377,28 @@ export default function Produtos({ produtos, onSave, onDelete }) {
       />
       <div className="cf-page-body">
 
+        <AdminProductsPromos produtos={produtos} onApplyFilter={applyPromoFilter} />
+
+        {promoBanner && (
+          <div className="cf-admin-promo-active cf-ad-animate-in alert alert-info mb-3" style={{ fontSize: 13 }}>
+            <Megaphone size={14} style={{ flexShrink: 0 }} />
+            <span>
+              Campanha ativa: <strong>{promoBanner}</strong> — {filtrados.length} material(is) na lista
+            </span>
+            <button
+              type="button"
+              className="btn btn-default btn-xs ml-auto"
+              onClick={() => {
+                setPromoBanner('')
+                setBusca('')
+                setFiltro('todos')
+              }}
+            >
+              Limpar
+            </button>
+          </div>
+        )}
+
         {/* Filtros */}
         <Box title={<><Search size={13}/> Filtros</>}>
           <div className="d-flex gap-3 flex-wrap items-center">
@@ -322,6 +416,7 @@ export default function Produtos({ produtos, onSave, onDelete }) {
         </Box>
 
         {/* Tabela */}
+        <div ref={tableRef}>
         <Box title={<><Package size={13}/> Materiais cadastrados ({filtrados.length})</>}>
           {filtrados.length === 0 ? (
             <div className="empty-state">
@@ -350,14 +445,22 @@ export default function Produtos({ produtos, onSave, onDelete }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrados.map(p => {
+                  {filtrados.map((p, rowIdx) => {
                     const c  = calcProduto(p)
                     const st = stockStatus(p)
                     return (
-                      <tr key={p.id}>
+                      <tr
+                        key={p.id}
+                        className={`cf-prod-row cf-ad-animate-in${highlightId === p.id ? ' cf-prod-row--highlight' : ''}`}
+                        style={{ '--cf-ad-delay': `${Math.min(rowIdx, 10) * 35}ms` }}
+                      >
                         <td>
                           <div className="d-flex items-center gap-2">
-                            <span style={{fontSize:20}}>{p.emoji}</span>
+                            {p.imagemDataUrl ? (
+                              <img src={p.imagemDataUrl} alt="" width={40} height={40} style={{ objectFit: 'cover', borderRadius: 6 }} />
+                            ) : (
+                              <span style={{fontSize:20}}>{p.emoji}</span>
+                            )}
                             <div>
                               <div style={{fontWeight:600}}>{p.nome}</div>
                               <div className="text-xs text-muted">{p.unidade}</div>
@@ -403,6 +506,7 @@ export default function Produtos({ produtos, onSave, onDelete }) {
             </div>
           )}
         </Box>
+        </div>
       </div>
 
       {/* Modal novo/editar */}

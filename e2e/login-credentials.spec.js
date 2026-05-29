@@ -10,6 +10,10 @@ function loginSenha(page) {
 function loginSubmit(page) {
   return page.getByTestId('login-submit').or(page.getByRole('button', { name: /Entrar no sistema/i }))
 }
+function guestOpenLogin(page) {
+  return page.getByTestId('guest-open-login')
+}
+
 function adminOpen(page) {
   return page
     .getByTestId('admin-login-open')
@@ -30,8 +34,9 @@ function adminSubmit(page) {
 test.describe('Login — entrada de credenciais', () => {
   test('credenciais inválidas exibem mensagem de erro', async ({ page }) => {
     await page.goto('/')
-    await expect(page).toHaveTitle(/ConstruFácil/i)
+    await expect(page).toHaveTitle(/Castor|ConstruFácil|Construtor/i)
 
+    await guestOpenLogin(page).click()
     await loginUsuario(page).fill('usuario_inexistente_e2e')
     await loginSenha(page).fill('senha_errada_12345')
     await loginSubmit(page).click()
@@ -44,6 +49,7 @@ test.describe('Login — entrada de credenciais', () => {
     page,
   }) => {
     await page.goto('/')
+    await guestOpenLogin(page).click()
     await adminOpen(page).click()
     await expect(page.getByRole('heading', { name: /Acesso administrativo/i })).toBeVisible()
 
@@ -63,6 +69,7 @@ test.describe('Login — entrada de credenciais', () => {
     test.skip(!user || !pass, 'Defina E2E_LOGIN_USER e E2E_LOGIN_PASSWORD para este teste.')
 
     await page.goto('/')
+    await guestOpenLogin(page).click()
     await loginUsuario(page).fill(user)
     await loginSenha(page).fill(pass)
     await loginSubmit(page).click()

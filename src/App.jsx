@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import Layout           from './components/Layout'
+import Layout, { Modal } from './components/Layout'
 import Dashboard        from './pages/Dashboard'
 import Loja             from './pages/Loja'
+import SobreEmpresa     from './pages/SobreEmpresa'
 import Carrinho         from './pages/Carrinho'
 import Pedidos          from './pages/Pedidos'
 import Produtos         from './pages/Produtos'
@@ -9,15 +10,19 @@ import Relatorios       from './pages/Relatorios'
 import Config           from './pages/Config'
 import Login            from './pages/Login'
 import { loadCompanySettings } from './utils/companySettings'
+import { mergeVitrine } from './utils/vitrineSettings'
+import { mergeAboutPage } from './utils/aboutPageSettings'
 import {
   listUsersRequest,
   loginRequest,
   logoutRequest,
   resetUserPasswordRequest,
   registerRequest,
+  deleteUserRequest,
 } from './services/authApi'
 import {
   fetchBranding,
+  fetchCatalogProdutos,
   fetchProdutos,
   fetchPedidos,
   fetchRankingProdutos,
@@ -38,7 +43,44 @@ const AREA_DEFAULT_SCREEN = {
 }
 
 const ADMIN_SCREENS = new Set(['dashboard', 'pedidos', 'produtos', 'relatorios', 'config', 'credenciais'])
-const SALES_SCREENS = new Set(['loja', 'carrinho'])
+const SALES_SCREENS = new Set(['loja', 'carrinho', 'sobre'])
+
+const GUEST_CART_KEY = 'cf_guest_cart_v1'
+
+function readGuestCartLines() {
+  try {
+    const s = sessionStorage.getItem(GUEST_CART_KEY)
+    const j = s ? JSON.parse(s) : []
+    return Array.isArray(j) ? j.filter((x) => x && x.id) : []
+  } catch {
+    return []
+  }
+}
+
+function writeGuestCartLines(lines) {
+  try {
+    sessionStorage.setItem(
+      GUEST_CART_KEY,
+      JSON.stringify(lines.map(({ produto, qty }) => ({ id: produto.id, qty })))
+    )
+  } catch {
+    /* ignore */
+  }
+}
+
+function hydrateGuestCart(catalog, raw) {
+  const pmap = new Map(catalog.map((p) => [p.id, p]))
+  const out = []
+  for (const row of raw) {
+    const p = pmap.get(row.id)
+    if (!p || p.estoque <= 0) continue
+    out.push({
+      produto: p,
+      qty: Math.min(Math.max(1, Math.floor(Number(row.qty) || 1)), p.estoque),
+    })
+  }
+  return out
+}
 
 export default function App() {
   const [auth,     setAuth]     = useState(null)
@@ -55,6 +97,14 @@ export default function App() {
   const [dataReady, setDataReady] = useState(false)
   const [dataLoadError, setDataLoadError] = useState('')
   const [dataRetryKey, setDataRetryKey] = useState(0)
+  const [guestScreen, setGuestScreen] = useState('loja')
+  const [loginModalOpen, setLoginModalOpen] = useState(false)
+  const [guestCatalog, setGuestCatalog] = useState([])
+  const [guestCatalogLoading, setGuestCatalogLoading] = useState(false)
+  const [guestCatalogError, setGuestCatalogError] = useState('')
+  const [guestRetryKey, setGuestRetryKey] = useState(0)
+  const [guestCart, setGuestCart] = useState([])
+  const [lojaBusca, setLojaBusca] = useState('')
 
   useEffect(() => {
     fetchBranding()
@@ -63,10 +113,65 @@ export default function App() {
           ...prev,
           nomeLoja: b.nomeLoja || prev.nomeLoja,
           logoDataUrl: b.logoDataUrl ?? prev.logoDataUrl,
+          vitrine: b.vitrine != null ? mergeVitrine(b.vitrine) : prev.vitrine,
+          paginaSobre: b.paginaSobre != null ? mergeAboutPage(b.paginaSobre) : prev.paginaSobre,
         }))
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (auth) return
+    let cancelled = false
+    setGuestCatalogLoading(true)
+    setGuestCatalogError('')
+    ;(async () => {
+      try {
+        if (DEMO_MODE) {
+          const m = await import('./demoEmbedded.js')
+          if (!cancelled) {
+            setGuestCatalog(m.INITIAL_PRODUCTS)
+            setGuestCatalogLoading(false)
+          }
+          return
+        }
+        const prods = await fetchCatalogProdutos()
+        if (!cancelled) {
+          setGuestCatalog(prods)
+          setGuestCatalogLoading(false)
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error(e)
+          setGuestCatalogError(e.message || 'Falha ao carregar vitrine.')
+          setGuestCatalogLoading(false)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [auth, guestRetryKey])
+
+  useEffect(() => {
+    if (auth) return
+    if (!guestCatalog.length) return
+    const raw = readGuestCartLines()
+    setGuestCart(hydrateGuestCart(guestCatalog, raw))
+  }, [auth, guestCatalog])
+
+  useEffect(() => {
+    if (auth) return
+    if (!guestCart.length) {
+      try {
+        sessionStorage.removeItem(GUEST_CART_KEY)
+      } catch {
+        /* ignore */
+      }
+      return
+    }
+    writeGuestCartLines(guestCart)
+  }, [auth, guestCart])
 
   useEffect(() => {
     if (!auth) {
@@ -109,7 +214,11 @@ export default function App() {
           setProdutos(prods)
           setPedidos(peds)
           setRankingProdutos(rank)
-          setEmpresa(emp)
+          setEmpresa({
+            ...emp,
+            vitrine: mergeVitrine(emp.vitrine),
+            paginaSobre: mergeAboutPage(emp.paginaSobre),
+          })
           setDataReady(true)
         }
       } catch (e) {
@@ -124,13 +233,22 @@ export default function App() {
 
   const salvarEmpresa = async (dados) => {
     if (!auth?.token) return
+    const payload = {
+      ...dados,
+      vitrine: mergeVitrine(dados?.vitrine),
+      paginaSobre: mergeAboutPage(dados?.paginaSobre),
+    }
     if (DEMO_MODE) {
-      setEmpresa((prev) => ({ ...prev, ...dados }))
+      setEmpresa((prev) => ({ ...prev, ...payload }))
       return
     }
     try {
-      const merged = await saveEmpresaRequest(auth.token, dados)
-      setEmpresa(merged)
+      const merged = await saveEmpresaRequest(auth.token, payload)
+      setEmpresa({
+        ...merged,
+        vitrine: mergeVitrine(merged.vitrine),
+        paginaSobre: mergeAboutPage(merged.paginaSobre),
+      })
     } catch (e) {
       window.alert(e.message || 'Falha ao salvar configuracoes.')
     }
@@ -188,6 +306,30 @@ export default function App() {
       window.alert(e.message || 'Falha ao excluir produto.')
     }
   }
+
+  const guestAdicionarAoCarrinho = (produto) => {
+    setGuestCart((prev) => {
+      const ex = prev.find((i) => i.produto.id === produto.id)
+      if (ex) {
+        return prev.map((i) =>
+          i.produto.id === produto.id
+            ? { ...i, qty: Math.min(i.qty + 1, produto.estoque) }
+            : i
+        )
+      }
+      return [...prev, { produto, qty: 1 }]
+    })
+    setGuestScreen('carrinho')
+  }
+
+  const guestAtualizarQtd = (id, qty) => {
+    if (qty <= 0) setGuestCart((prev) => prev.filter((i) => i.produto.id !== id))
+    else setGuestCart((prev) => prev.map((i) => (i.produto.id === id ? { ...i, qty } : i)))
+  }
+
+  const guestRemoverDoCarrinho = (id) => setGuestCart((prev) => prev.filter((i) => i.produto.id !== id))
+
+  const guestLimparCarrinho = () => setGuestCart([])
 
   const adicionarAoCarrinho = (produto) => {
     setCart((prev) => {
@@ -355,6 +497,14 @@ export default function App() {
       userName: u.nome || u.usuario,
       role: u.role,
     }
+    try {
+      sessionStorage.removeItem(GUEST_CART_KEY)
+    } catch {
+      /* ignore */
+    }
+    setGuestCart([])
+    setLoginModalOpen(false)
+    setGuestScreen('loja')
     setAuth(nextAuth)
     const nextArea = u.role === 'admin' ? 'admin' : 'vendas'
     setArea(nextArea)
@@ -369,6 +519,12 @@ export default function App() {
   const handleResetUserPassword = async (userId, novaSenha) => {
     if (!auth?.token) throw new Error('Sessao invalida.')
     await resetUserPasswordRequest(auth.token, userId, novaSenha)
+  }
+
+  const handleDeleteUser = async (userId) => {
+    if (!auth?.token) return
+    await deleteUserRequest(auth.token, userId)
+    await carregarUsuarios(auth.token)
   }
 
   const handleLogout = async () => {
@@ -414,6 +570,7 @@ export default function App() {
               usersError={usersError}
               onRefreshUsers={() => carregarUsuarios(auth.token)}
               onResetUserPassword={handleResetUserPassword}
+              onDeleteUser={handleDeleteUser}
             />
           )
         case 'credenciais':
@@ -427,6 +584,7 @@ export default function App() {
               usersError={usersError}
               onRefreshUsers={() => carregarUsuarios(auth.token)}
               onResetUserPassword={handleResetUserPassword}
+              onDeleteUser={handleDeleteUser}
             />
           )
         default:
@@ -436,7 +594,16 @@ export default function App() {
 
     switch (screen) {
       case 'loja':
-        return <Loja produtos={produtos} onAddCart={adicionarAoCarrinho}/>
+        return (
+          <Loja
+            vitrineAmazon
+            produtos={produtos}
+            empresa={empresa}
+            busca={lojaBusca}
+            onBuscaChange={setLojaBusca}
+            onAddCart={adicionarAoCarrinho}
+          />
+        )
       case 'carrinho':
         return (
           <Carrinho
@@ -447,10 +614,22 @@ export default function App() {
             onCheckout={finalizarPedido}
             onViewOrders={irParaPedidosAdmin}
             onNav={setScreen}
+            guestMode={false}
           />
         )
+      case 'sobre':
+        return <SobreEmpresa vitrineAmazon empresa={empresa} />
       default:
-        return <Loja produtos={produtos} onAddCart={adicionarAoCarrinho}/>
+        return (
+          <Loja
+            vitrineAmazon
+            produtos={produtos}
+            empresa={empresa}
+            busca={lojaBusca}
+            onBuscaChange={setLojaBusca}
+            onAddCart={adicionarAoCarrinho}
+          />
+        )
     }
   }
 
@@ -466,12 +645,101 @@ export default function App() {
   }, [auth, screen])
 
   if (!auth) {
+    const guestShell = {
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 16,
+      padding: 24,
+      boxSizing: 'border-box',
+      background: 'var(--body-bg, #F5F0EA)',
+      fontSize: 16,
+      color: 'var(--text, #231F20)',
+    }
+    if (guestCatalogError) {
+      return (
+        <div style={guestShell}>
+          <div className="alert alert-danger" style={{ maxWidth: 520, width: '100%' }} role="alert">
+            {guestCatalogError}
+          </div>
+          <button type="button" className="btn btn-primary" onClick={() => setGuestRetryKey((k) => k + 1)}>
+            Tentar novamente
+          </button>
+        </div>
+      )
+    }
+    if (guestCatalogLoading && guestCatalog.length === 0) {
+      return (
+        <div style={guestShell}>
+          Carregando vitrine…
+        </div>
+      )
+    }
+    const guestCartCount = guestCart.reduce((s, i) => s + i.qty, 0)
     return (
-      <Login
-        onLogin={handleLogin}
-        onRegister={handleRegister}
-        empresa={empresa}
-      />
+      <>
+        <Layout
+          storefrontMode
+          guestMode
+          onOpenLogin={() => setLoginModalOpen(true)}
+          active={guestScreen}
+          area="vendas"
+          onNav={setGuestScreen}
+          onLogout={() => {}}
+          userName=""
+          canSwitchArea={false}
+          cartCount={guestCartCount}
+          alertCount={0}
+          empresa={empresa}
+          storeSearch={
+            guestScreen === 'loja'
+              ? {
+                  value: lojaBusca,
+                  onChange: setLojaBusca,
+                  produtos: guestCatalog,
+                  onNavigateLoja: () => setGuestScreen('loja'),
+                }
+              : null
+          }
+        >
+          {guestScreen === 'loja' ? (
+            <Loja
+              vitrineAmazon
+              produtos={guestCatalog}
+              empresa={empresa}
+              busca={lojaBusca}
+              onBuscaChange={setLojaBusca}
+              onAddCart={guestAdicionarAoCarrinho}
+            />
+          ) : guestScreen === 'sobre' ? (
+            <SobreEmpresa vitrineAmazon empresa={empresa} />
+          ) : (
+            <Carrinho
+              guestMode
+              onRequestLogin={() => setLoginModalOpen(true)}
+              cart={guestCart}
+              onQty={guestAtualizarQtd}
+              onRemove={guestRemoverDoCarrinho}
+              onClear={guestLimparCarrinho}
+              onCheckout={async () => {}}
+              onViewOrders={() => {}}
+              onNav={setGuestScreen}
+            />
+          )}
+        </Layout>
+        {loginModalOpen && (
+          <Modal title="Acesso à conta" onClose={() => setLoginModalOpen(false)} size="lg">
+            <Login
+              embedded
+              onLogin={handleLogin}
+              onRegister={handleRegister}
+              empresa={empresa}
+            />
+          </Modal>
+        )}
+      </>
     )
   }
 
@@ -523,6 +791,7 @@ export default function App() {
 
   return (
     <Layout
+      storefrontMode={area === 'vendas'}
       active={activeScreen}
       area={area}
       onSwitchArea={alternarArea}
@@ -533,6 +802,16 @@ export default function App() {
       cartCount={cartCount}
       alertCount={alertCount}
       empresa={empresa}
+      storeSearch={
+        area === 'vendas' && activeScreen === 'loja'
+          ? {
+              value: lojaBusca,
+              onChange: setLojaBusca,
+              produtos,
+              onNavigateLoja: () => setScreen('loja'),
+            }
+          : null
+      }
     >
       {renderScreen()}
     </Layout>
