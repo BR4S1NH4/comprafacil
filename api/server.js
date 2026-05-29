@@ -66,6 +66,10 @@ function normalizeImagemDataUrl(value) {
   return s
 }
 
+function normalizeLogoDataUrl(value) {
+  return normalizeImagemDataUrl(value)
+}
+
 function rowToPedido(row) {
   return {
     id: row.id,
@@ -81,7 +85,9 @@ function rowToPedido(row) {
 }
 
 function mergeEmpresa(payload) {
-  return { ...DEFAULT_EMPRESA, ...(payload && typeof payload === 'object' ? payload : {}) }
+  const merged = { ...DEFAULT_EMPRESA, ...(payload && typeof payload === 'object' ? payload : {}) }
+  merged.logoDataUrl = normalizeLogoDataUrl(merged.logoDataUrl)
+  return merged
 }
 
 const sessions = new Map()

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Leaf, Home, Users, Building2, Hammer, Heart } from 'lucide-react'
 import { applyAboutPlaceholders, mergeAboutPage } from '../utils/aboutPageSettings'
-import { resolveLogoUrls } from '../branding'
+import { isUsableImageSrc, resolveLogoUrls } from '../branding'
 
 const ICON_MAP = {
   home: Home,
@@ -24,9 +24,11 @@ export default function CompanyAboutPanel({
   const decor = about.decoracao
   const { header: defaultLogo } = resolveLogoUrls({ logoDataUrl: logoEmpresa })
 
+  const decorLogo = isUsableImageSrc(decor.logoDecorDataUrl) ? decor.logoDecorDataUrl.trim() : null
+  const empresaLogo = isUsableImageSrc(logoEmpresa) ? logoEmpresa.trim() : null
   const heroLogo =
-    decor.logoDecorDataUrl ||
-    (decor.usarLogoEmpresa && logoEmpresa ? logoEmpresa : null) ||
+    decorLogo ||
+    (decor.usarLogoEmpresa && empresaLogo ? empresaLogo : null) ||
     defaultLogo
 
   const opacidade = decor.opacidadeArtes ?? 0.18
@@ -35,19 +37,19 @@ export default function CompanyAboutPanel({
     <article className={`cf-about-page${pageMode ? ' cf-about-page--full' : ''}`}>
       {pageMode && (
         <>
-          {decor.arteEsquerdaDataUrl && (
+          {isUsableImageSrc(decor.arteEsquerdaDataUrl) && (
             <img
               className="cf-about-deco cf-about-deco--left"
-              src={decor.arteEsquerdaDataUrl}
+              src={decor.arteEsquerdaDataUrl.trim()}
               alt=""
               aria-hidden
               style={{ opacity: opacidade }}
             />
           )}
-          {decor.arteDireitaDataUrl && (
+          {isUsableImageSrc(decor.arteDireitaDataUrl) && (
             <img
               className="cf-about-deco cf-about-deco--right"
-              src={decor.arteDireitaDataUrl}
+              src={decor.arteDireitaDataUrl.trim()}
               alt=""
               aria-hidden
               style={{ opacity: opacidade }}
