@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Curriculo - Tiago Gabriel Albuquerque e Souza</title>
+    <style>
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        color: #26323b;
+        background: #ffffff;
+      }
+
+      .page {
+        width: 210mm;
+        min-height: 297mm;
+        display: flex;
+      }
+
+      .left {
+        width: 37%;
+        background: #123d53;
+        color: #f3f7fb;
+        padding: 28px 20px 24px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .left::before {
+        content: "";
+        position: absolute;
+        top: -35px;
+        left: -70px;
+        width: 340px;
+        height: 230px;
+        background: #d7ccde;
+        border-bottom-right-radius: 180px;
+      }
+
+      .left::after {
+        content: "";
+        position: absolute;
+        bottom: -25px;
+        left: -20px;
+        width: 290px;
+        height: 90px;
+        background: #f0e90c;
+        border-top-left-radius: 120px;
+        border-top-right-radius: 120px;
+      }
+
+      .photo {
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        border: 3px solid #b7c6d1;
+        background: linear-gradient(140deg, #dce5eb, #9eb4c2);
+        margin: 18px auto 22px;
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #123d53;
+        font-size: 28px;
+        font-weight: 700;
+      }
+
+      .contact {
+        margin-top: 12px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .contact p {
+        margin: 0 0 12px;
+        font-size: 14px;
+        line-height: 1.4;
+      }
+
+      .left h3 {
+        margin: 26px 0 10px;
+        font-size: 26px;
+        letter-spacing: 0.5px;
+        font-weight: 700;
+        position: relative;
+        z-index: 2;
+      }
+
+      .left .section-title {
+        margin-top: 24px;
+        margin-bottom: 8px;
+        font-weight: 700;
+        font-size: 27px;
+        letter-spacing: 0.5px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .left .small-title {
+        margin-top: 18px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        font-weight: 700;
+        font-size: 23px;
+        position: relative;
+        z-index: 2;
+      }
+
+      .left .body-text {
+        font-size: 15px;
+        line-height: 1.45;
+        margin: 0;
+        position: relative;
+        z-index: 2;
+      }
+
+      .right {
+        width: 63%;
+        padding: 34px 30px 28px;
+      }
+
+      .name {
+        margin: 0 0 20px;
+        font-size: 38px;
+        font-weight: 600;
+        letter-spacing: 0.8px;
+        color: #22333e;
+      }
+
+      .heading {
+        color: #5f3f63;
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+        font-size: 24px;
+        margin: 20px 0 8px;
+      }
+
+      .sub {
+        margin: 0 0 5px;
+        font-size: 17px;
+        font-weight: 700;
+      }
+
+      .text {
+        margin: 0 0 8px;
+        font-size: 16px;
+        line-height: 1.4;
+      }
+
+      ul {
+        margin: 4px 0 10px 18px;
+        padding: 0;
+      }
+
+      li {
+        margin-bottom: 5px;
+        font-size: 15px;
+        line-height: 1.35;
+      }
+
+      .project-link {
+        word-break: break-all;
+        color: #355f8d;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <aside class="left">
+        <div class="photo">TG</div>
+
+        <div class="contact">
+          <p><strong>Endereço:</strong><br />Manaus - AM</p>
+          <p><strong>Telefone:</strong><br />+55 92 9148-2566</p>
+        </div>
+
+        <div class="small-title">Objetivo</div>
+        <p class="body-text">
+          Busco oportunidade de Jovem Aprendiz/Estagio para aplicar meus conhecimentos em tecnologia,
+          contribuir com a equipe e desenvolver experiencia pratica no ambiente profissional.
+        </p>
+      </aside>
+
+      <main class="right">
+        <h1 class="name">TIAGO GABRIEL<br />ALBUQUERQUE E SOUZA</h1>
+
+        <h2 class="heading">Formacao</h2>
+        <p class="sub">Escolas IDAAM</p>
+        <p class="text">3º ano do Ensino Medio (em andamento)</p>
+
+        <h2 class="heading">Cursos e Certificacoes</h2>
+        <ul>
+          <li><strong>SENAC:</strong> Recursos Word e Excel (basico e avancado), 60 horas.</li>
+          <li>
+            <strong>Fundacao Bradesco:</strong> Introducao a Programacao Orientada a Objetos; Desenvolvimento
+            Orientado a Objetos utilizando Python; Linguagem de Programacao Python - Basico; Desenvolvimento
+            de Projeto Completo com Python e Estrutura de Dados; Desenvolvimento de Interface Grafica utilizando
+            Python.
+          </li>
+          <li><strong>Cisco Networking Academy:</strong> Networking Basics (em andamento).</li>
+        </ul>
+
+        <h2 class="heading">Conhecimentos Tecnicos</h2>
+        <ul>
+          <li>Logica de programacao</li>
+          <li>HTML, CSS e JavaScript</li>
+          <li>Nocoes de backend</li>
+          <li>Python (basico a intermediario)</li>
+          <li>Uso de GitHub</li>
+        </ul>
+
+        <h2 class="heading">Projeto em Destaque</h2>
+        <p class="sub">Site de empresa ficticia de materiais de construcao</p>
+        <p class="text">
+          Desenvolvimento de projeto web com HTML, CSS, JavaScript e nocoes de backend, com organizacao de
+          estrutura de paginas e publicacao online.
+        </p>
+        <p class="text">
+          Link:
+          <a class="project-link" href="https://https-castorconstrutor-onrender-com.onrender.com">
+            https://https-castorconstrutor-onrender-com.onrender.com
+          </a>
+        </p>
+
+        <h2 class="heading">Habilidades</h2>
+        <ul>
+          <li>Facilidade com tecnologia</li>
+          <li>Trabalho em equipe</li>
+          <li>Vontade de aprender</li>
+          <li>Comprometimento com evolucao continua</li>
+        </ul>
+      </main>
+    </div>
+  </body>
+</html>
