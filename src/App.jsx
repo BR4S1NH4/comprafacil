@@ -21,6 +21,7 @@ import {
   deleteUserRequest,
 } from './services/authApi'
 import {
+  warmApi,
   fetchBranding,
   fetchCatalogProdutos,
   fetchProdutos,
@@ -107,6 +108,7 @@ export default function App() {
   const [lojaBusca, setLojaBusca] = useState('')
 
   useEffect(() => {
+    warmApi()
     fetchBranding()
       .then((b) => {
         setEmpresa((prev) => ({
@@ -119,6 +121,10 @@ export default function App() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (loginModalOpen) warmApi()
+  }, [loginModalOpen])
 
   useEffect(() => {
     if (auth) return
@@ -204,22 +210,43 @@ export default function App() {
     }
     ;(async () => {
       try {
-        const [prods, peds, rank, emp] = await Promise.all([
-          fetchProdutos(auth.token),
-          fetchPedidos(auth.token),
-          fetchRankingProdutos(auth.token),
-          fetchEmpresa(auth.token),
+        const token = auth.token
+        const isAdmin = auth.role === 'admin'
+
+        const [prods, peds, emp] = await Promise.all([
+          fetchProdutos(token),
+          fetchPedidos(token),
+          fetchEmpresa(token),
         ])
-        if (!cancelled) {
-          setProdutos(prods)
-          setPedidos(peds)
-          setRankingProdutos(rank)
-          setEmpresa({
-            ...emp,
-            vitrine: mergeVitrine(emp.vitrine),
-            paginaSobre: mergeAboutPage(emp.paginaSobre),
+        if (cancelled) return
+        setProdutos(prods)
+        setPedidos(peds)
+        setEmpresa({
+          ...emp,
+          vitrine: mergeVitrine(emp.vitrine),
+          paginaSobre: mergeAboutPage(emp.paginaSobre),
+        })
+        setDataReady(true)
+
+        void fetchRankingProdutos(token)
+          .then((rank) => {
+            if (!cancelled) setRankingProdutos(rank)
           })
-          setDataReady(true)
+          .catch(() => {})
+
+        if (isAdmin) {
+          void (async () => {
+            try {
+              setUsersLoading(true)
+              setUsersError('')
+              const data = await listUsersRequest(token)
+              if (!cancelled) setUsuarios(data.users || [])
+            } catch (error) {
+              if (!cancelled) setUsersError(error.message || 'Falha ao carregar usuarios.')
+            } finally {
+              if (!cancelled) setUsersLoading(false)
+            }
+          })()
         }
       } catch (e) {
         if (!cancelled) {
@@ -485,6 +512,7 @@ export default function App() {
   }
 
   const handleLogin = async (usuario, senha) => {
+    warmApi()
     const data = await loginRequest(usuario, senha)
     if (!data?.token || !data?.user) {
       throw new Error(
@@ -505,11 +533,11 @@ export default function App() {
     setGuestCart([])
     setLoginModalOpen(false)
     setGuestScreen('loja')
+    if (guestCatalog.length) setProdutos(guestCatalog)
     setAuth(nextAuth)
     const nextArea = u.role === 'admin' ? 'admin' : 'vendas'
     setArea(nextArea)
     setScreen(AREA_DEFAULT_SCREEN[nextArea])
-    if (u.role === 'admin') await carregarUsuarios(data.token)
   }
 
   const handleRegister = async (nome, usuario, senha) => {
@@ -640,9 +668,10 @@ export default function App() {
 
   useEffect(() => {
     if (!auth || auth.role !== 'admin') return
-    if (screen !== 'config') return
+    if (screen !== 'config' && screen !== 'credenciais') return
+    if (usersLoading || usuarios.length) return
     carregarUsuarios(auth.token)
-  }, [auth, screen])
+  }, [auth, screen, usersLoading, usuarios.length])
 
   if (!auth) {
     const guestShell = {
@@ -735,6 +764,7 @@ export default function App() {
               embedded
               onLogin={handleLogin}
               onRegister={handleRegister}
+              onAdminModalOpen={warmApi}
               empresa={empresa}
             />
           </Modal>
@@ -743,51 +773,34 @@ export default function App() {
     )
   }
 
-  if (!dataReady) {
-    const shellStyle = {
-      minHeight: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 16,
-      padding: 24,
-      boxSizing: 'border-box',
-      background: 'var(--body-bg, #F5F0EA)',
-      fontSize: 16,
-      color: 'var(--text, #231F20)',
-    }
-    if (dataLoadError) {
-      return (
-        <div style={shellStyle}>
-          <div
-            className="alert alert-danger"
-            style={{ maxWidth: 520, width: '100%' }}
-            role="alert"
-          >
-            {dataLoadError}
-          </div>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setDataRetryKey((k) => k + 1)}
-            >
-              Tentar novamente
-            </button>
-            <button type="button" className="btn btn-default" onClick={() => void handleLogout()}>
-              Sair
-            </button>
-          </div>
-        </div>
-      )
-    }
-    return (
-      <div style={shellStyle}>
-        Carregando dados do servidor…
+  const authenticatedContent = dataLoadError ? (
+    <div style={{ padding: 24, maxWidth: 520, margin: '0 auto' }}>
+      <div className="alert alert-danger" role="alert">
+        {dataLoadError}
       </div>
-    )
-  }
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setDataRetryKey((k) => k + 1)}
+        >
+          Tentar novamente
+        </button>
+        <button type="button" className="btn btn-default" onClick={() => void handleLogout()}>
+          Sair
+        </button>
+      </div>
+    </div>
+  ) : (
+    <>
+      {!dataReady && (
+        <div className="alert alert-info" role="status" style={{ margin: '0 0 16px' }}>
+          Carregando dados do servidor…
+        </div>
+      )}
+      {renderScreen()}
+    </>
+  )
 
   return (
     <Layout
@@ -813,7 +826,7 @@ export default function App() {
           : null
       }
     >
-      {renderScreen()}
+      {authenticatedContent}
     </Layout>
   )
 }

@@ -487,6 +487,12 @@ button { cursor: pointer; font-family: inherit; }
 }
 .input-addon-left  { border-right: none; border-radius: var(--r) 0 0 var(--r); }
 .input-addon-right { border-left: none;  border-radius: 0 var(--r) var(--r) 0; }
+button.input-addon {
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+button.input-addon:hover { background: #e0e0e0; color: var(--text); }
 .form-hint { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
 .form-error{ font-size: 11px; color: var(--c-red); margin-top: 3px; }
 .has-error > input, .has-error > select { border-color: var(--c-red); }

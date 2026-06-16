@@ -1,9 +1,111 @@
 import React, { useState } from 'react'
-import { Lock, User, LogIn, AlertTriangle, UserPlus } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { Lock, User, LogIn, AlertTriangle, UserPlus, Eye, EyeOff } from 'lucide-react'
 import { DEFAULT_COMPANY_SETTINGS } from '../utils/companySettings'
 import { BRAND_NAME, resolveLogoUrls } from '../branding'
 
-export default function Login({ onLogin, onRegister, empresa, embedded }) {
+function PasswordInput({ testId, value, onChange, placeholder, autoFocus }) {
+  const [visible, setVisible] = useState(false)
+  return (
+    <div className="input-group">
+      <span className="input-addon input-addon-left"><Lock size={13} /></span>
+      <input
+        data-testid={testId}
+        type={visible ? 'text' : 'password'}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        required
+      />
+      <button
+        type="button"
+        className="input-addon input-addon-right"
+        onClick={() => setVisible(v => !v)}
+        aria-label={visible ? 'Ocultar senha' : 'Exibir senha'}
+        title={visible ? 'Ocultar senha' : 'Exibir senha'}
+      >
+        {visible ? <EyeOff size={13} /> : <Eye size={13} />}
+      </button>
+    </div>
+  )
+}
+
+function AdminLoginModal({
+  open,
+  onClose,
+  adminUsuario,
+  setAdminUsuario,
+  adminSenha,
+  setAdminSenha,
+  adminErro,
+  setAdminErro,
+  adminLoading,
+  onSubmit,
+}) {
+  if (!open) return null
+
+  const modal = (
+    <div
+      className="modal-backdrop"
+      style={{ zIndex: 1200 }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div className="modal" style={{ maxWidth: 440 }}>
+        <div className="modal-header">
+          <h4>Acesso administrativo</h4>
+          <button type="button" className="modal-close-btn" onClick={onClose}>x</button>
+        </div>
+        <div className="modal-body">
+          {adminErro && (
+            <div className="alert alert-danger">
+              <AlertTriangle size={15} />
+              <span>{adminErro}</span>
+            </div>
+          )}
+          <form onSubmit={onSubmit}>
+            <div className="form-group">
+              <label>Usuario administrativo</label>
+              <div className="input-group">
+                <span className="input-addon input-addon-left"><User size={13} /></span>
+                <input
+                  data-testid="admin-usuario"
+                  value={adminUsuario}
+                  onChange={e => {
+                    setAdminUsuario(e.target.value)
+                    setAdminErro('')
+                  }}
+                  placeholder="Digite o usuario admin"
+                  autoFocus
+                  required
+                />
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Senha</label>
+              <PasswordInput
+                testId="admin-senha"
+                value={adminSenha}
+                onChange={e => {
+                  setAdminSenha(e.target.value)
+                  setAdminErro('')
+                }}
+                placeholder="Digite a senha do admin"
+              />
+            </div>
+            <button data-testid="admin-submit" type="submit" className="btn btn-warning btn-block" disabled={adminLoading}>
+              <LogIn size={14} /> {adminLoading ? 'Entrando...' : 'Entrar como administrador'}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+
+  return createPortal(modal, document.body)
+}
+
+export default function Login({ onLogin, onRegister, empresa, embedded, onAdminModalOpen }) {
   const e = empresa || DEFAULT_COMPANY_SETTINGS
   const nomeMarca = (e.nomeLoja || BRAND_NAME).trim()
   const { header: loginLogoUrl } = resolveLogoUrls(e)
@@ -65,11 +167,20 @@ export default function Login({ onLogin, onRegister, empresa, embedded }) {
       setAdminLoading(true)
       setAdminErro('')
       await onLogin(adminUsuario, adminSenha)
+      setAdminOpen(false)
     } catch (error) {
       setAdminErro(error.message || 'Falha no login administrativo.')
     } finally {
       setAdminLoading(false)
     }
+  }
+
+  const openAdminModal = () => {
+    onAdminModalOpen?.()
+    setAdminUsuario('TIAGO GABRIEL')
+    setAdminSenha('')
+    setAdminErro('')
+    setAdminOpen(true)
   }
 
   const inner = (
@@ -126,12 +237,7 @@ export default function Login({ onLogin, onRegister, empresa, embedded }) {
             type="button"
             data-testid="admin-login-open"
             className="btn btn-warning btn-block mb-2"
-            onClick={() => {
-              setAdminOpen(true)
-              setAdminUsuario('TIAGO GABRIEL')
-              setAdminSenha('')
-              setAdminErro('')
-            }}
+            onClick={openAdminModal}
           >
             Acessar login administrativo
           </button>
@@ -185,38 +291,28 @@ export default function Login({ onLogin, onRegister, empresa, embedded }) {
 
             <div className="form-group">
               <label>Senha</label>
-              <div className="input-group">
-                <span className="input-addon input-addon-left"><Lock size={13} /></span>
-                <input
-                  data-testid="login-senha"
-                  type="password"
-                  value={senha}
-                  onChange={e => {
-                    setSenha(e.target.value)
-                    setErro('')
-                  }}
-                  placeholder="Digite a senha"
-                  required
-                />
-              </div>
+              <PasswordInput
+                testId="login-senha"
+                value={senha}
+                onChange={e => {
+                  setSenha(e.target.value)
+                  setErro('')
+                }}
+                placeholder="Digite a senha"
+              />
             </div>
 
             {mode === 'register' && (
               <div className="form-group">
                 <label>Confirmar senha</label>
-                <div className="input-group">
-                  <span className="input-addon input-addon-left"><Lock size={13} /></span>
-                  <input
-                    type="password"
-                    value={confirmarSenha}
-                    onChange={e => {
-                      setConfirmarSenha(e.target.value)
-                      setErro('')
-                    }}
-                    placeholder="Repita a senha"
-                    required
-                  />
-                </div>
+                <PasswordInput
+                  value={confirmarSenha}
+                  onChange={e => {
+                    setConfirmarSenha(e.target.value)
+                    setErro('')
+                  }}
+                  placeholder="Repita a senha"
+                />
               </div>
             )}
 
@@ -235,67 +331,26 @@ export default function Login({ onLogin, onRegister, empresa, embedded }) {
       </div>
   )
 
+  const adminModal = (
+    <AdminLoginModal
+      open={adminOpen}
+      onClose={() => setAdminOpen(false)}
+      adminUsuario={adminUsuario}
+      setAdminUsuario={setAdminUsuario}
+      adminSenha={adminSenha}
+      setAdminSenha={setAdminSenha}
+      adminErro={adminErro}
+      setAdminErro={setAdminErro}
+      adminLoading={adminLoading}
+      onSubmit={handleAdminLogin}
+    />
+  )
+
   if (embedded) {
     return (
       <>
         {inner}
-        {adminOpen && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setAdminOpen(false)}>
-          <div className="modal" style={{ maxWidth: 440 }}>
-            <div className="modal-header">
-              <h4>Acesso administrativo</h4>
-              <button className="modal-close-btn" onClick={() => setAdminOpen(false)}>x</button>
-            </div>
-            <div className="modal-body">
-              {adminErro && (
-                <div className="alert alert-danger">
-                  <AlertTriangle size={15} />
-                  <span>{adminErro}</span>
-                </div>
-              )}
-              <form onSubmit={handleAdminLogin}>
-                <div className="form-group">
-                  <label>Usuario administrativo</label>
-                  <div className="input-group">
-                    <span className="input-addon input-addon-left"><User size={13} /></span>
-                    <input
-                      data-testid="admin-usuario"
-                      value={adminUsuario}
-                      onChange={e => {
-                        setAdminUsuario(e.target.value)
-                        setAdminErro('')
-                      }}
-                      placeholder="Digite o usuario admin"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Senha</label>
-                  <div className="input-group">
-                    <span className="input-addon input-addon-left"><Lock size={13} /></span>
-                    <input
-                      data-testid="admin-senha"
-                      type="password"
-                      value={adminSenha}
-                      onChange={e => {
-                        setAdminSenha(e.target.value)
-                        setAdminErro('')
-                      }}
-                      placeholder="Digite a senha do admin"
-                      required
-                      autoFocus
-                    />
-                  </div>
-                </div>
-                <button data-testid="admin-submit" type="submit" className="btn btn-warning btn-block" disabled={adminLoading}>
-                  <LogIn size={14} /> {adminLoading ? 'Entrando...' : 'Entrar como administrador'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+        {adminModal}
       </>
     )
   }
@@ -312,64 +367,7 @@ export default function Login({ onLogin, onRegister, empresa, embedded }) {
       }}
     >
       {inner}
-
-      {adminOpen && (
-        <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setAdminOpen(false)}>
-          <div className="modal" style={{ maxWidth: 440 }}>
-            <div className="modal-header">
-              <h4>Acesso administrativo</h4>
-              <button className="modal-close-btn" onClick={() => setAdminOpen(false)}>x</button>
-            </div>
-            <div className="modal-body">
-              {adminErro && (
-                <div className="alert alert-danger">
-                  <AlertTriangle size={15} />
-                  <span>{adminErro}</span>
-                </div>
-              )}
-              <form onSubmit={handleAdminLogin}>
-                <div className="form-group">
-                  <label>Usuario administrativo</label>
-                  <div className="input-group">
-                    <span className="input-addon input-addon-left"><User size={13} /></span>
-                    <input
-                      data-testid="admin-usuario"
-                      value={adminUsuario}
-                      onChange={e => {
-                        setAdminUsuario(e.target.value)
-                        setAdminErro('')
-                      }}
-                      placeholder="Digite o usuario admin"
-                      required
-                    />
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>Senha</label>
-                  <div className="input-group">
-                    <span className="input-addon input-addon-left"><Lock size={13} /></span>
-                    <input
-                      data-testid="admin-senha"
-                      type="password"
-                      value={adminSenha}
-                      onChange={e => {
-                        setAdminSenha(e.target.value)
-                        setAdminErro('')
-                      }}
-                      placeholder="Digite a senha do admin"
-                      required
-                      autoFocus
-                    />
-                  </div>
-                </div>
-                <button data-testid="admin-submit" type="submit" className="btn btn-warning btn-block" disabled={adminLoading}>
-                  <LogIn size={14} /> {adminLoading ? 'Entrando...' : 'Entrar como administrador'}
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
+      {adminModal}
     </div>
   )
 }
