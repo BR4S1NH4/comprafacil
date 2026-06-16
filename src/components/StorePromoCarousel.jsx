@@ -30,7 +30,14 @@ function findCenteredCardIndex(el) {
 function scrollToCardIndex(el, index, behavior = 'smooth') {
   const card = getCards(el)[index]
   if (!card) return
-  card.scrollIntoView({ behavior, inline: 'center', block: 'nearest' })
+  const cardRect = card.getBoundingClientRect()
+  const vpRect = el.getBoundingClientRect()
+  const cardCenter = cardRect.left + cardRect.width / 2
+  const vpCenter = vpRect.left + vpRect.width / 2
+  const delta = cardCenter - vpCenter
+  const maxScroll = el.scrollWidth - el.clientWidth
+  const target = Math.max(0, Math.min(el.scrollLeft + delta, maxScroll))
+  el.scrollTo({ left: target, behavior })
 }
 
 export default function StorePromoCarousel({
