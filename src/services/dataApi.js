@@ -1,10 +1,7 @@
 import { apiUrl } from '../config/apiBase.js'
 import { parseApiResponse } from './parseApiResponse.js'
 
-/** Acorda a API (ex.: cold start no Render) sem bloquear a UI. */
-export function warmApi() {
-  fetch(apiUrl('/api/health')).catch(() => {})
-}
+export { warmApi, ensureApiReady } from './apiWarmup.js'
 
 function authHeaders(token) {
   return {

@@ -1,13 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { lazy, Suspense, useEffect, useState } from 'react'
 import Layout, { Modal } from './components/Layout'
-import Dashboard        from './pages/Dashboard'
 import Loja             from './pages/Loja'
 import SobreEmpresa     from './pages/SobreEmpresa'
 import Carrinho         from './pages/Carrinho'
-import Pedidos          from './pages/Pedidos'
-import Produtos         from './pages/Produtos'
-import Relatorios       from './pages/Relatorios'
-import Config           from './pages/Config'
 import Login            from './pages/Login'
 import { loadCompanySettings } from './utils/companySettings'
 import { mergeVitrine } from './utils/vitrineSettings'
@@ -22,6 +17,7 @@ import {
 } from './services/authApi'
 import {
   warmApi,
+  ensureApiReady,
   fetchBranding,
   fetchCatalogProdutos,
   fetchProdutos,
@@ -34,6 +30,14 @@ import {
   checkoutPedidoRequest,
 } from './services/dataApi'
 import { calcProduto } from './data'
+
+const Dashboard  = lazy(() => import('./pages/Dashboard'))
+const Pedidos    = lazy(() => import('./pages/Pedidos'))
+const Produtos   = lazy(() => import('./pages/Produtos'))
+const Relatorios = lazy(() => import('./pages/Relatorios'))
+const Config     = lazy(() => import('./pages/Config'))
+
+const demoModulePromise = import('./demoEmbedded.js')
 
 const DEMO_MODE =
   import.meta.env.VITE_DEMO_DATA === 'true' || import.meta.env.VITE_DEMO_DATA === '1'
@@ -101,7 +105,7 @@ export default function App() {
   const [guestScreen, setGuestScreen] = useState('loja')
   const [loginModalOpen, setLoginModalOpen] = useState(false)
   const [guestCatalog, setGuestCatalog] = useState([])
-  const [guestCatalogLoading, setGuestCatalogLoading] = useState(false)
+  const [guestCatalogLoading, setGuestCatalogLoading] = useState(true)
   const [guestCatalogError, setGuestCatalogError] = useState('')
   const [guestRetryKey, setGuestRetryKey] = useState(0)
   const [guestCart, setGuestCart] = useState([])
@@ -129,31 +133,34 @@ export default function App() {
   useEffect(() => {
     if (auth) return
     let cancelled = false
-    setGuestCatalogLoading(true)
     setGuestCatalogError('')
-    ;(async () => {
-      try {
-        if (DEMO_MODE) {
-          const m = await import('./demoEmbedded.js')
-          if (!cancelled) {
-            setGuestCatalog(m.INITIAL_PRODUCTS)
-            setGuestCatalogLoading(false)
-          }
-          return
-        }
-        const prods = await fetchCatalogProdutos()
+
+    demoModulePromise
+      .then((m) => {
         if (!cancelled) {
-          setGuestCatalog(prods)
+          setGuestCatalog(m.INITIAL_PRODUCTS)
           setGuestCatalogLoading(false)
         }
-      } catch (e) {
+      })
+      .catch((e) => {
         if (!cancelled) {
           console.error(e)
           setGuestCatalogError(e.message || 'Falha ao carregar vitrine.')
           setGuestCatalogLoading(false)
         }
-      }
-    })()
+      })
+
+    if (!DEMO_MODE) {
+      warmApi()
+      fetchCatalogProdutos()
+        .then((prods) => {
+          if (!cancelled && prods?.length) setGuestCatalog(prods)
+        })
+        .catch((e) => {
+          if (!cancelled) console.error(e)
+        })
+    }
+
     return () => {
       cancelled = true
     }
@@ -190,7 +197,7 @@ export default function App() {
     setDataReady(false)
     setDataLoadError('')
     if (DEMO_MODE) {
-      import('./demoEmbedded.js')
+      demoModulePromise
         .then((m) => {
           if (cancelled) return
           setProdutos(m.INITIAL_PRODUCTS)
@@ -213,20 +220,24 @@ export default function App() {
         const token = auth.token
         const isAdmin = auth.role === 'admin'
 
-        const [prods, peds, emp] = await Promise.all([
+        const [prods, emp] = await Promise.all([
           fetchProdutos(token),
-          fetchPedidos(token),
           fetchEmpresa(token),
         ])
         if (cancelled) return
         setProdutos(prods)
-        setPedidos(peds)
         setEmpresa({
           ...emp,
           vitrine: mergeVitrine(emp.vitrine),
           paginaSobre: mergeAboutPage(emp.paginaSobre),
         })
         setDataReady(true)
+
+        void fetchPedidos(token)
+          .then((peds) => {
+            if (!cancelled) setPedidos(peds)
+          })
+          .catch(() => {})
 
         void fetchRankingProdutos(token)
           .then((rank) => {
@@ -511,9 +522,24 @@ export default function App() {
     }
   }
 
-  const handleLogin = async (usuario, senha) => {
-    warmApi()
-    const data = await loginRequest(usuario, senha)
+  const handleLogin = async (usuario, senha, { onStatus } = {}) => {
+    await ensureApiReady({ onStatus })
+    onStatus?.('auth')
+
+    const ctrl = new AbortController()
+    const loginTimer = window.setTimeout(() => ctrl.abort(), 60_000)
+    let data
+    try {
+      data = await loginRequest(usuario, senha, { signal: ctrl.signal })
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        throw new Error('Login demorou demais. Tente novamente.')
+      }
+      throw e
+    } finally {
+      window.clearTimeout(loginTimer)
+    }
+
     if (!data?.token || !data?.user) {
       throw new Error(
         'Resposta invalida do servidor. No Render (Static Site): (1) Environment -> VITE_API_BASE_URL = URL publica da API, sem barra no final, e redeploy; OU (2) Redirects/Rewrites -> Rewrite: Source /api/* -> Destination https://SUA-API.onrender.com/api/*'
@@ -577,46 +603,76 @@ export default function App() {
   }
 
   const renderScreen = () => {
+    const fallback = (
+      <div className="alert alert-info" role="status" style={{ margin: '0 0 16px' }}>
+        Carregando módulo…
+      </div>
+    )
+
     if (area === 'admin') {
       switch (screen) {
         case 'dashboard':
-          return <Dashboard produtos={produtos} pedidos={pedidos} rankingProdutos={rankingProdutos} onNav={setScreen}/>
+          return (
+            <Suspense fallback={fallback}>
+              <Dashboard produtos={produtos} pedidos={pedidos} rankingProdutos={rankingProdutos} onNav={setScreen}/>
+            </Suspense>
+          )
         case 'pedidos':
-          return <Pedidos pedidos={pedidos}/>
+          return (
+            <Suspense fallback={fallback}>
+              <Pedidos pedidos={pedidos}/>
+            </Suspense>
+          )
         case 'produtos':
-          return <Produtos produtos={produtos} onSave={salvarProduto} onDelete={excluirProduto}/>
+          return (
+            <Suspense fallback={fallback}>
+              <Produtos produtos={produtos} onSave={salvarProduto} onDelete={excluirProduto}/>
+            </Suspense>
+          )
         case 'relatorios':
-          return <Relatorios produtos={produtos} pedidos={pedidos} rankingProdutos={rankingProdutos}/>
+          return (
+            <Suspense fallback={fallback}>
+              <Relatorios produtos={produtos} pedidos={pedidos} rankingProdutos={rankingProdutos}/>
+            </Suspense>
+          )
         case 'config':
           return (
-            <Config
-              initialTab="geral"
-              empresa={empresa}
-              onSaveEmpresa={salvarEmpresa}
-              usuarios={usuarios}
-              usersLoading={usersLoading}
-              usersError={usersError}
-              onRefreshUsers={() => carregarUsuarios(auth.token)}
-              onResetUserPassword={handleResetUserPassword}
-              onDeleteUser={handleDeleteUser}
-            />
+            <Suspense fallback={fallback}>
+              <Config
+                initialTab="geral"
+                empresa={empresa}
+                onSaveEmpresa={salvarEmpresa}
+                usuarios={usuarios}
+                usersLoading={usersLoading}
+                usersError={usersError}
+                onRefreshUsers={() => carregarUsuarios(auth.token)}
+                onResetUserPassword={handleResetUserPassword}
+                onDeleteUser={handleDeleteUser}
+              />
+            </Suspense>
           )
         case 'credenciais':
           return (
-            <Config
-              initialTab="credenciais"
-              empresa={empresa}
-              onSaveEmpresa={salvarEmpresa}
-              usuarios={usuarios}
-              usersLoading={usersLoading}
-              usersError={usersError}
-              onRefreshUsers={() => carregarUsuarios(auth.token)}
-              onResetUserPassword={handleResetUserPassword}
-              onDeleteUser={handleDeleteUser}
-            />
+            <Suspense fallback={fallback}>
+              <Config
+                initialTab="credenciais"
+                empresa={empresa}
+                onSaveEmpresa={salvarEmpresa}
+                usuarios={usuarios}
+                usersLoading={usersLoading}
+                usersError={usersError}
+                onRefreshUsers={() => carregarUsuarios(auth.token)}
+                onResetUserPassword={handleResetUserPassword}
+                onDeleteUser={handleDeleteUser}
+              />
+            </Suspense>
           )
         default:
-          return <Dashboard produtos={produtos} pedidos={pedidos} rankingProdutos={rankingProdutos} onNav={setScreen}/>
+          return (
+            <Suspense fallback={fallback}>
+              <Dashboard produtos={produtos} pedidos={pedidos} rankingProdutos={rankingProdutos} onNav={setScreen}/>
+            </Suspense>
+          )
       }
     }
 
@@ -687,7 +743,7 @@ export default function App() {
       fontSize: 16,
       color: 'var(--text, #231F20)',
     }
-    if (guestCatalogError) {
+    if (guestCatalogError && !guestCatalog.length) {
       return (
         <div style={guestShell}>
           <div className="alert alert-danger" style={{ maxWidth: 520, width: '100%' }} role="alert">
@@ -696,13 +752,6 @@ export default function App() {
           <button type="button" className="btn btn-primary" onClick={() => setGuestRetryKey((k) => k + 1)}>
             Tentar novamente
           </button>
-        </div>
-      )
-    }
-    if (guestCatalogLoading && guestCatalog.length === 0) {
-      return (
-        <div style={guestShell}>
-          Carregando vitrine…
         </div>
       )
     }
@@ -734,14 +783,21 @@ export default function App() {
           }
         >
           {guestScreen === 'loja' ? (
-            <Loja
-              vitrineAmazon
-              produtos={guestCatalog}
-              empresa={empresa}
-              busca={lojaBusca}
-              onBuscaChange={setLojaBusca}
-              onAddCart={guestAdicionarAoCarrinho}
-            />
+            <>
+              {guestCatalogLoading && guestCatalog.length === 0 && (
+                <div className="alert alert-info" role="status" style={{ margin: '0 0 12px' }}>
+                  Carregando vitrine…
+                </div>
+              )}
+              <Loja
+                vitrineAmazon
+                produtos={guestCatalog}
+                empresa={empresa}
+                busca={lojaBusca}
+                onBuscaChange={setLojaBusca}
+                onAddCart={guestAdicionarAoCarrinho}
+              />
+            </>
           ) : guestScreen === 'sobre' ? (
             <SobreEmpresa vitrineAmazon empresa={empresa} />
           ) : (

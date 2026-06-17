@@ -1,11 +1,12 @@
 import { apiUrl } from '../config/apiBase.js'
 import { parseApiResponse } from './parseApiResponse.js'
 
-export async function loginRequest(usuario, senha) {
+export async function loginRequest(usuario, senha, { signal } = {}) {
   const res = await fetch(apiUrl('/api/auth/login'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ usuario, senha }),
+    signal,
   })
   return parseApiResponse(res)
 }

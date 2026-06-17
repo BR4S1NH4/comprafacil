@@ -1411,6 +1411,18 @@ button.input-addon:hover { background: #e0e0e0; color: var(--text); }
 @media (max-width: 640px) {
   .cf-promo-carousel {
     padding: 12px 8px 14px;
+    animation: none;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 280px;
+  }
+  .cf-promo-carousel.cf-ad-animate-in {
+    animation: cf-ad-enter var(--cf-ad-duration) var(--cf-ad-ease) both;
+  }
+  .cf-store-ad--hero .cf-store-ad-img {
+    animation: none;
+  }
+  .cf-page-body {
+    content-visibility: auto;
   }
   .cf-promo-carousel-sub {
     font-size: 10px;

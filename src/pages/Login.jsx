@@ -31,6 +31,12 @@ function PasswordInput({ testId, value, onChange, placeholder, autoFocus }) {
   )
 }
 
+function loginStatusLabel(phase) {
+  if (phase === 'warmup' || phase === 'warmup-retry') return 'Acordando servidor…'
+  if (phase === 'auth') return 'Entrando…'
+  return 'Entrando…'
+}
+
 function AdminLoginModal({
   open,
   onClose,
@@ -41,6 +47,7 @@ function AdminLoginModal({
   adminErro,
   setAdminErro,
   adminLoading,
+  adminStatus,
   onSubmit,
 }) {
   if (!open) return null
@@ -94,7 +101,7 @@ function AdminLoginModal({
               />
             </div>
             <button data-testid="admin-submit" type="submit" className="btn btn-warning btn-block" disabled={adminLoading}>
-              <LogIn size={14} /> {adminLoading ? 'Entrando...' : 'Entrar como administrador'}
+              <LogIn size={14} /> {adminLoading ? (adminStatus || 'Entrando...') : 'Entrar como administrador'}
             </button>
           </form>
         </div>
@@ -122,18 +129,24 @@ export default function Login({ onLogin, onRegister, empresa, embedded, onAdminM
   const [adminSenha, setAdminSenha] = useState('')
   const [adminErro, setAdminErro] = useState('')
   const [adminLoading, setAdminLoading] = useState(false)
+  const [adminStatus, setAdminStatus] = useState('')
+  const [loginStatus, setLoginStatus] = useState('')
 
   const handleLogin = async e => {
     e.preventDefault()
     try {
       setLoading(true)
+      setLoginStatus('')
       setErro('')
       setOkMsg('')
-      await onLogin(usuario, senha)
+      await onLogin(usuario, senha, {
+        onStatus: (phase) => setLoginStatus(loginStatusLabel(phase)),
+      })
     } catch (error) {
       setErro(error.message || 'Usuario ou senha invalidos.')
     } finally {
       setLoading(false)
+      setLoginStatus('')
     }
   }
 
@@ -165,13 +178,17 @@ export default function Login({ onLogin, onRegister, empresa, embedded, onAdminM
     e.preventDefault()
     try {
       setAdminLoading(true)
+      setAdminStatus('')
       setAdminErro('')
-      await onLogin(adminUsuario, adminSenha)
+      await onLogin(adminUsuario, adminSenha, {
+        onStatus: (phase) => setAdminStatus(loginStatusLabel(phase)),
+      })
       setAdminOpen(false)
     } catch (error) {
       setAdminErro(error.message || 'Falha no login administrativo.')
     } finally {
       setAdminLoading(false)
+      setAdminStatus('')
     }
   }
 
@@ -323,7 +340,7 @@ export default function Login({ onLogin, onRegister, empresa, embedded, onAdminM
               disabled={loading}
             >
               {mode === 'login'
-                ? <><LogIn size={14} /> {loading ? 'Entrando...' : 'Entrar no sistema'}</>
+                ? <><LogIn size={14} /> {loading ? (loginStatus || 'Entrando...') : 'Entrar no sistema'}</>
                 : <><UserPlus size={14} /> {loading ? 'Criando conta...' : 'Criar conta'}</>}
             </button>
           </form>
@@ -342,6 +359,7 @@ export default function Login({ onLogin, onRegister, empresa, embedded, onAdminM
       adminErro={adminErro}
       setAdminErro={setAdminErro}
       adminLoading={adminLoading}
+      adminStatus={adminStatus}
       onSubmit={handleAdminLogin}
     />
   )

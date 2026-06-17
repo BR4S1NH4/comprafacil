@@ -52,11 +52,14 @@ export default function StorePromoCarousel({
     else if (onAddCart) onAddCart(payload?.p ?? payload)
   }
   const viewportRef = useRef(null)
+  const sectionRef = useRef(null)
   const programmaticScrollRef = useRef(false)
   const activeIndexRef = useRef(0)
   const [paused, setPaused] = useState(false)
+  const [offscreen, setOffscreen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const pauseTimerRef = useRef(null)
+  const carouselPaused = paused || offscreen
 
   const setActive = useCallback((idx) => {
     activeIndexRef.current = idx
@@ -75,6 +78,17 @@ export default function StorePromoCarousel({
     },
     []
   )
+
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(
+      ([entry]) => setOffscreen(!entry.isIntersecting),
+      { root: null, threshold: 0.08, rootMargin: '40px 0px' }
+    )
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
 
   const markProgrammaticScroll = useCallback(() => {
     programmaticScrollRef.current = true
@@ -158,10 +172,10 @@ export default function StorePromoCarousel({
   }, [ofertas.length, setActive])
 
   useEffect(() => {
-    if (ofertas.length <= 1 || paused) return
+    if (ofertas.length <= 1 || carouselPaused) return
     const id = setInterval(() => scrollByCard(1), AUTO_MS)
     return () => clearInterval(id)
-  }, [ofertas.length, paused, scrollByCard])
+  }, [ofertas.length, carouselPaused, scrollByCard])
 
   if (!ofertas.length) return null
 
@@ -169,6 +183,7 @@ export default function StorePromoCarousel({
 
   return (
     <section
+      ref={sectionRef}
       className="cf-promo-carousel cf-ad-animate-in cf-promo-carousel--loop"
       style={{ '--cf-ad-delay': '40ms' }}
       aria-label={title}
